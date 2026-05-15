@@ -1,0 +1,55 @@
+Samples	Breed	Status
+nonPR_Hols_1	Holstein	nonPR
+nonPR_Hols_2	Holstein	nonPR
+nonPR_Hols_3	Holstein	nonPR
+nonPR_Hols_4	Holstein	nonPR
+nonPR_Hols_5	Holstein	nonPR
+nonPR_Hols_6	Holstein	nonPR
+nonPR_Hols_7	Holstein	nonPR
+nonPR_Hols_8	Holstein	nonPR
+nonPR_Hols_9	Holstein	nonPR
+nonPR_Hols_10	Holstein	nonPR
+nonPR_Hols_11	Holstein	nonPR
+PR_Hols_1	Holstein	PR
+PR_Hols_2	Holstein	PR
+PR_Hols_3	Holstein	PR
+PR_Hols_4	Holstein	PR
+PR_Hols_5	Holstein	PR
+PR_Hols_6	Holstein	PR
+PR_Hols_7	Holstein	PR
+PR_Hols_8	Holstein	PR
+PR_Jap_1	Japanese Black	PR
+PR_Jap_2	Japanese Black	PR
+PR_Jap_3	Japanese Black	PR
+PR_Jap_4	Japanese Black	PR
+PR_Jap_5	Japanese Black	PR
+PR_Jap_6	Japanese Black	PR
+nonPR_Jap_1	Japanese Black	nonPR
+nonPR_Jap_2	Japanese Black	nonPR
+nonPR_Jap_3	Japanese Black	nonPR
+nonPR_Jap_4	Japanese Black	nonPR
+nonPR_Jap_5	Japanese Black	nonPR
+nonPR_Sim_1	Simmental	nonPR
+nonPR_Sim_2	Simmental	nonPR
+nonPR_Sim_3	Simmental	nonPR
+PR_Sim_1	Simmental	PR
+PR_Sim_2	Simmental	PR
+PR_Sim_3	Simmental	PR
+PR_Cont_1	Charolais	PR
+PR_Cont_2	Charolais	PR
+PR_Cont_3	Charolais	PR
+PR_Cont_4	Charolais	PR
+PR_Cont_5	Charolais	PR
+PR_Cont_6	Charolais	PR
+nonPR_Cont_1	Charolais	nonPR
+nonPR_Cont_2	Charolais	nonPR
+nonPR_Cont_3	Charolais	nonPR
+nonPR_Cont_4	Charolais	nonPR
+nonPR_Cont_5	Charolais	nonPR
+nonPR_Cont_6	Charolais	nonPR
+nonPR_Sim2_1	Simmental	nonPR
+nonPR_Sim2_2	Simmental	nonPR
+nonPR_Sim2_3	Simmental	nonPR
+PR_Sim2_1	Simmental	PR
+PR_Sim2_2	Simmental	PR
+PR_Sim2_3	Simmental	PR
