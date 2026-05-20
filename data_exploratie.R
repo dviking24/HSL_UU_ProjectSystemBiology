@@ -116,8 +116,6 @@ mean(vitro_shapiro < 0.05, na.rm = TRUE) * 100
 # --- combining blasto datasets --- 
 data_blasto <- cbind(data_blastovivo, data_blastovitro)
 
-
-
-
+identical(rownames(data_blastovivo), rownames(data_blastovitro))
 
 
