@@ -12,10 +12,10 @@ meta_blastovitro <- read.csv("Datasets/SampleInfo_BlastoIVT.txt", header = TRUE,
 
 
 # Genen inladen
-liganden <- data_ligrecep$ligand_ensembl
-receptors <- data_ligrecep$receptor_ensembl
-liganden_plus_receptors <- c(liganden, receptors)
-genen_waar_we_naar_zoeken <- unique(liganden_plus_receptors)
+liganden <- unique(data_ligrecep$ligand_ensembl)
+receptors <- unique(data_ligrecep$receptor_ensembl)
+ligreceptors <- intersect(liganden, receptors)
+genen_waar_we_naar_zoeken <- c(liganden, receptors)
 alle_genen_in_vivo <- row.names(data_blastovivo)
 alle_genen_in_endom <- row.names(data_endom)
 
@@ -33,10 +33,26 @@ onnodige_genen_in_endom_data <- setdiff(alle_genen_in_endom, genen_waar_we_naar_
 goede_genen_in_endom_data <- setdiff(alle_genen_in_endom, onnodige_genen_in_endom_data)
 
 # Endom-dataframe filteren zodat het alleen nog maar rijen met goede genen overhoudt
-data_endom2 <- data_blastovivo[goede_genen_in_endom_data, ]
+data_endom2 <- data_endom[goede_genen_in_endom_data, ]
 
 
+# Dataframes van Liganden, Receptors en LigandReceptor genen in Vivo-dataset
+liganden_vivo <- intersect(goede_genen_in_vivo_data, liganden)
+receptors_vivo <- intersect(goede_genen_in_vivo_data, receptors)
+ligreceptors_vivo <- intersect(goede_genen_in_vivo_data, ligreceptors)
+
+df_blastovivo_liganden <- data_blastovivo2[liganden_vivo, ]
+df_blastovivo_receptors <- data_blastovivo2[receptors_vivo, ]
+df_blastovivo_ligreceptors <- data_blastovivo2[ligreceptors_vivo, ]
 
 
+# Dataframes van Liganden, Receptors en LigandReceptor genen in Endometrium-dataset
+liganden_endom <- intersect(goede_genen_in_endom_data, liganden)
+receptors_endom <- intersect(goede_genen_in_endom_data, receptors)
+ligreceptors_endom <- intersect(goede_genen_in_endom_data, ligreceptors)
+
+df_endom_liganden <- data_endom2[liganden_endom, ]
+df_endom_receptors <- data_endom2[receptors_endom, ]
+df_endom_ligreceptors <- data_endom2[ligreceptors_endom, ]
 
 
