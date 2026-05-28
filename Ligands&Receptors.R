@@ -45,6 +45,94 @@ goede_genen_in_endom_data <- setdiff(alle_genen_in_endom, onnodige_genen_in_endo
 data_endom2 <- data_endom[goede_genen_in_endom_data, ]
 
 
+
+
+library(preprocessCore)
+library(ggplot2)
+
+# genen die in beide zitten (vivo + endom)
+gemeenschappelijk <- intersect(rownames(data_blastovivo2), rownames(data_endom2))
+
+vivo_sub  <- data_blastovivo2[gemeenschappelijk, ]
+endom_sub <- data_endom2[gemeenschappelijk, ]
+
+gecombineerd <- as.matrix(cbind(vivo_sub, endom_sub))
+
+# quantile normalisatie
+genorm <- normalize.quantiles(gecombineerd)
+dimnames(genorm) <- dimnames(gecombineerd)
+
+# terugsplitsen
+n_vivo <- ncol(vivo_sub)
+vivo_norm  <- genorm[, 1:n_vivo]
+endom_norm <- genorm[, (n_vivo + 1):ncol(genorm)]
+
+# groep-label voor de PCA
+groep <- c(rep("vivo", n_vivo), rep("endom", ncol(endom_sub)))
+
+# --- PCA functie (zelfde als bij vitro) ---
+pca_check <- function(mat, groep, titel) {
+  mat <- mat[apply(mat, 1, function(x) sd(x) != 0), ]
+  pca <- prcomp(t(mat), center = TRUE, scale. = TRUE)
+  var <- round(100 * summary(pca)$importance[2, 1:2], 1)
+  scores <- as.data.frame(pca$x[, 1:2])
+  scores$groep <- groep
+  ggplot(scores, aes(PC1, PC2, color = groep)) +
+    geom_point(size = 3) +
+    labs(title = titel, x = paste0("PC1 (", var[1], "%)"), y = paste0("PC2 (", var[2], "%)")) +
+    theme_minimal()
+}
+
+# before en after
+pca_check(gecombineerd, groep, "Vivo - voor normalisatie")
+pca_check(genorm, groep, "Vivo - na normalisatie")
+
+
+
+
+# genen die in beide zitten (vitro + endom)
+gemeenschappelijk_v <- intersect(rownames(data_blastovitro2), rownames(data_endom2))
+
+vitro_sub  <- data_blastovitro2[gemeenschappelijk_v, ]
+endom_sub_v <- data_endom2[gemeenschappelijk_v, ]
+
+gecombineerd_v <- as.matrix(cbind(vitro_sub, endom_sub_v))
+
+# quantile normalisatie
+genorm_v <- normalize.quantiles(gecombineerd_v)
+dimnames(genorm_v) <- dimnames(gecombineerd_v)
+
+# terugsplitsen
+n_vitro <- ncol(vitro_sub)
+vitro_norm <- genorm_v[, 1:n_vitro]
+endom_norm_v <- genorm_v[, (n_vitro + 1):ncol(genorm_v)]
+
+# groep-label voor de PCA
+groep_v <- c(rep("vitro", n_vitro), rep("endom", ncol(endom_sub_v)))
+
+# --- PCA functie zodat je before/after makkelijk draait ---
+pca_check <- function(mat, groep, titel) {
+  mat <- mat[apply(mat, 1, function(x) sd(x) != 0), ]
+  pca <- prcomp(t(mat), center = TRUE, scale. = TRUE)
+  var <- round(100 * summary(pca)$importance[2, 1:2], 1)
+  scores <- as.data.frame(pca$x[, 1:2])
+  scores$groep <- groep
+  ggplot(scores, aes(PC1, PC2, color = groep)) +
+    geom_point(size = 3) +
+    labs(title = titel, x = paste0("PC1 (", var[1], "%)"), y = paste0("PC2 (", var[2], "%)")) +
+    theme_minimal()
+}
+
+# before en after
+pca_check(gecombineerd_v, groep_v, "Vitro - voor normalisatie")
+pca_check(genorm_v, groep_v, "Vitro - na normalisatie")
+
+
+
+
+
+
+
 # Dataframes van Liganden, Receptors en LigandReceptor genen in Vivo-dataset
 liganden_vivo <- intersect(goede_genen_in_vivo_data, liganden)
 receptors_vivo <- intersect(goede_genen_in_vivo_data, receptors)
@@ -73,5 +161,7 @@ ligreceptors_endom <- intersect(goede_genen_in_endom_data, ligreceptors)
 df_endom_liganden <- data_endom2[liganden_endom, ]
 df_endom_receptors <- data_endom2[receptors_endom, ]
 df_endom_ligreceptors <- data_endom2[ligreceptors_endom, ]
+
+
 
 
