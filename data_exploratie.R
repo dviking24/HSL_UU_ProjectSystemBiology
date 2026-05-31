@@ -119,3 +119,25 @@ data_blasto <- cbind(data_blastovivo, data_blastovitro)
 identical(rownames(data_blastovivo), rownames(data_blastovitro))
 
 
+# pca 
+pca_plot <- function(data, conditie, titel) {
+  mat <- t(data)
+  mat <- mat[, apply(mat, 2, function(x) sd(x) != 0)]
+  pca <- prcomp(mat, center = TRUE, scale. = TRUE)
+  var <- round(100 * summary(pca)$importance[2, 1:2], 1)
+  scores <- as.data.frame(pca$x[, 1:2])
+  scores$conditie <- conditie
+  ggplot(scores, aes(PC1, PC2, color = conditie)) +
+    geom_point(size = 3) +
+    labs(title = titel, x = paste0("PC1 (", var[1], "%)"), y = paste0("PC2 (", var[2], "%)")) +
+    theme_minimal()
+}
+
+pca_plot(data_endom, ifelse(grepl("^PR", colnames(data_endom)), "PR", "nonPR"), "PCA endom")
+pca_plot(data_blastovivo, ifelse(grepl("_PR_", colnames(data_blastovivo)), "PR", "NP"), "PCA blasto in vivo")
+pca_plot(data_blastovitro, ifelse(grepl("_PR_", colnames(data_blastovitro)), "PR", "NP"), "PCA blasto in vitro")
+
+#boxplot
+boxplot(data_endom, las = 2, cex.axis = 0.5, main = "Endom")
+boxplot(data_blastovivo, las = 2, cex.axis = 0.5, main = "Blasto in vivo")
+boxplot(data_blastovitro, las = 2, cex.axis = 0.5, main = "Blasto in vitro")
