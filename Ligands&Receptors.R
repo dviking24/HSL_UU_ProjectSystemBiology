@@ -1,6 +1,7 @@
 library(preprocessCore)
 library(ggplot2)
 
+
 # Cross-data normalisatie op alle genen eerst
 
 # Vivo + Endom
