@@ -1,6 +1,21 @@
 library(preprocessCore)
 library(ggplot2)
 
+# --- Data inladen ---
+data_endom       <- read.csv("Datasets/DataEndom.txt", header = TRUE, sep = "\t", row.names = 1)
+data_blastovivo  <- read.csv("Datasets/Data_BlastoIVV.txt", header = TRUE, sep = "\t", row.names = 1)
+data_blastovitro <- read.csv("Datasets/Data_BlastoIVT.txt", header = TRUE, sep = "\t", row.names = 1)
+data_ligrecep    <- read.csv("Datasets/LRdb_bovine_ENSEMBL.txt", header = TRUE, sep = "\t")
+
+# metadata
+meta_endom       <- read.csv("Datasets/SampleInfo_Endom.txt", header = TRUE, sep = "\t")
+meta_blastovivo  <- read.csv("Datasets/SampleInfo_BlastoIVV.txt", header = TRUE, sep = "\t")
+meta_blastovitro <- read.csv("Datasets/SampleInfo_BlastoIVT.txt", header = TRUE, sep = "\t")
+
+# Gen-lijsten samenstellen
+liganden     <- unique(data_ligrecep$ligand_ensembl)
+receptors    <- unique(data_ligrecep$receptor_ensembl)
+ligreceptors <- intersect(liganden, receptors)
 
 # Cross-data normalisatie op alle genen eerst
 
