@@ -267,15 +267,15 @@ write.table(
   col.names = NA
 )
 
-"""
-| Matrix                      | Ligand bron  | Receptor bron |
-| --------------------------- | ------------ | ------------- |
-| comm_vivo_embLig_endoRec    | embryo vivo  | endometrium   |
-| comm_vivo_endoLig_embRec    | endometrium  | embryo vivo   |
-| comm_vitro_embLig_endoRec   | embryo vitro | endometrium   |
-| comm_vitro_endoLig_embRec   | endometrium  | embryo vitro  |
 
-"""
+# Matrix                      | Ligand bron  | Receptor bron |
+# --------------------------- | ------------ | ------------- |
+# comm_vivo_embLig_endoRec    | embryo vivo  | endometrium   |
+# comm_vivo_endoLig_embRec    | endometrium  | embryo vivo   |
+# comm_vitro_embLig_endoRec   | embryo vitro | endometrium   |
+# comm_vitro_endoLig_embRec   | endometrium  | embryo vitro  |
+
+
 
 #making the matrices like belen wants
 
@@ -355,4 +355,6 @@ write.table(
   row.names = TRUE,
   col.names = NA
 )
+
+
 
