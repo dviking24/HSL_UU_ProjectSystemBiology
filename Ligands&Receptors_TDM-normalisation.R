@@ -277,84 +277,159 @@ write.table(
 
 
 
-#making the matrices like belen wants
+# 1. vivo
 
-# 1. vivo-endometrium
+# labels
 
-expr_vivo <- cbind(endom_norm, vivo_norm)
+endo_lig_names <- paste0("ENDO_LIG_", colnames(endom_norm))
+vivo_lig_names <- paste0("VIVO_LIG_", colnames(vivo_norm))
+
+endo_rec_names <- paste0("ENDO_REC_", colnames(endom_norm))
+vivo_rec_names <- paste0("VIVO_REC_", colnames(vivo_norm))
+
+# matrix
+
+row_names <- c(endo_lig_names, vivo_lig_names)
+col_names <- c(endo_rec_names, vivo_rec_names)
 
 comm_vivo_all <- matrix(
-  0,
-  nrow = ncol(expr_vivo),
-  ncol = ncol(expr_vivo),
-  dimnames = list(
-    colnames(expr_vivo),
-    colnames(expr_vivo)
-  )
+  NA,
+  nrow = length(row_names),
+  ncol = length(col_names),
+  dimnames = list(row_names, col_names)
 )
+
+# indices van de geldige blokken
+
+idx_endo_lig <- seq_len(ncol(endom_norm))
+idx_vivo_lig <- (ncol(endom_norm) + 1):length(row_names)
+
+idx_endo_rec <- seq_len(ncol(endom_norm))
+idx_vivo_rec <- (ncol(endom_norm) + 1):length(col_names)
+
+# alleen embryo -> endometrium
+
+comm_vivo_all[idx_vivo_lig, idx_endo_rec] <- 0
+
+# alleen endometrium -> embryo
+
+comm_vivo_all[idx_endo_lig, idx_vivo_rec] <- 0
 
 for(i in seq_len(nrow(data_ligrecep))) {
   
   ligand <- data_ligrecep$ligand_ensembl[i]
   receptor <- data_ligrecep$receptor_ensembl[i]
   
-  if(!(ligand %in% rownames(expr_vivo))) next
-  if(!(receptor %in% rownames(expr_vivo))) next
+  if(!(ligand %in% rownames(endom_norm)) ||
+     !(ligand %in% rownames(vivo_norm))) next
   
-  comm_vivo_all <- comm_vivo_all +
+  if(!(receptor %in% rownames(endom_norm)) ||
+     !(receptor %in% rownames(vivo_norm))) next
+  
+  # embryo ligand -> endometrium receptor
+  
+  comm_vivo_all[idx_vivo_lig, idx_endo_rec] <-
+    comm_vivo_all[idx_vivo_lig, idx_endo_rec] +
     outer(
-      as.numeric(expr_vivo[ligand, ]),
-      as.numeric(expr_vivo[receptor, ]),
+      as.numeric(vivo_norm[ligand, ]),
+      as.numeric(endom_norm[receptor, ]),
+      "*"
+    )
+  
+  # endometrium ligand -> embryo receptor
+  
+  comm_vivo_all[idx_endo_lig, idx_vivo_rec] <-
+    comm_vivo_all[idx_endo_lig, idx_vivo_rec] +
+    outer(
+      as.numeric(endom_norm[ligand, ]),
+      as.numeric(vivo_norm[receptor, ]),
       "*"
     )
 }
 
-write.table(
-  comm_vivo_all,
-  file = "matrices/comm_vivo_all.txt",
-  sep = "\t",
-  quote = FALSE,
-  row.names = TRUE,
-  col.names = NA
-)
+write.table( 
+  comm_vivo_all, 
+  file = "matrices/comm_vivo_all.txt", 
+  sep = "\t", 
+  quote = FALSE, 
+  row.names = TRUE, 
+  col.names = NA 
+  )
 
-# 2. vitro-endometrium
-expr_vitro <- cbind(endom_norm_v, vitro_norm)
+# 2. vitro 
+
+# labels
+
+endo_lig_names_v <- paste0("ENDO_LIG_", colnames(endom_norm_v))
+vitro_lig_names  <- paste0("VITRO_LIG_", colnames(vitro_norm))
+
+endo_rec_names_v <- paste0("ENDO_REC_", colnames(endom_norm_v))
+vitro_rec_names  <- paste0("VITRO_REC_", colnames(vitro_norm))
+
+# matrix
+
+row_names_v <- c(endo_lig_names_v, vitro_lig_names)
+col_names_v <- c(endo_rec_names_v, vitro_rec_names)
 
 comm_vitro_all <- matrix(
-  0,
-  nrow = ncol(expr_vitro),
-  ncol = ncol(expr_vitro),
-  dimnames = list(
-    colnames(expr_vitro),
-    colnames(expr_vitro)
-  )
+  NA,
+  nrow = length(row_names_v),
+  ncol = length(col_names_v),
+  dimnames = list(row_names_v, col_names_v)
 )
+
+# indices
+
+idx_endo_lig_v <- seq_len(ncol(endom_norm_v))
+idx_vitro_lig  <- (ncol(endom_norm_v) + 1):length(row_names_v)
+
+idx_endo_rec_v <- seq_len(ncol(endom_norm_v))
+idx_vitro_rec  <- (ncol(endom_norm_v) + 1):length(col_names_v)
+
+# geldige blokken
+
+comm_vitro_all[idx_vitro_lig, idx_endo_rec_v] <- 0
+comm_vitro_all[idx_endo_lig_v, idx_vitro_rec] <- 0
 
 for(i in seq_len(nrow(data_ligrecep))) {
   
   ligand <- data_ligrecep$ligand_ensembl[i]
   receptor <- data_ligrecep$receptor_ensembl[i]
   
-  if(!(ligand %in% rownames(expr_vitro))) next
-  if(!(receptor %in% rownames(expr_vitro))) next
+  if(!(ligand %in% rownames(endom_norm_v)) ||
+     !(ligand %in% rownames(vitro_norm))) next
   
-  comm_vitro_all <- comm_vitro_all +
+  if(!(receptor %in% rownames(endom_norm_v)) ||
+     !(receptor %in% rownames(vitro_norm))) next
+  
+  # embryo ligand -> endometrium receptor
+  
+  comm_vitro_all[idx_vitro_lig, idx_endo_rec_v] <-
+    comm_vitro_all[idx_vitro_lig, idx_endo_rec_v] +
     outer(
-      as.numeric(expr_vitro[ligand, ]),
-      as.numeric(expr_vitro[receptor, ]),
+      as.numeric(vitro_norm[ligand, ]),
+      as.numeric(endom_norm_v[receptor, ]),
+      "*"
+    )
+  
+  # endometrium ligand -> embryo receptor
+  
+  comm_vitro_all[idx_endo_lig_v, idx_vitro_rec] <-
+    comm_vitro_all[idx_endo_lig_v, idx_vitro_rec] +
+    outer(
+      as.numeric(endom_norm_v[ligand, ]),
+      as.numeric(vitro_norm[receptor, ]),
       "*"
     )
 }
 
-write.table(
-  comm_vitro_all,
-  file = "matrices/comm_vitro_all.txt",
-  sep = "\t",
-  quote = FALSE,
-  row.names = TRUE,
-  col.names = NA
-)
 
-
+write.table( 
+  comm_vitro_all, 
+  file = "matrices/comm_vitro_all.txt", 
+  sep = "\t", 
+  quote = FALSE, 
+  row.names = TRUE, 
+  col.names = NA 
+  )
 
