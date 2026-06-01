@@ -181,8 +181,8 @@ build_lr_matrix <- function(expr_embryo,
 # Vivo matrix
 
 vivo_matrix <- build_lr_matrix(
-  expr_embryo = df_blastovivo_liganden,
-  expr_endo   = df_endom_receptors_voor_vivo,
+  expr_embryo = vivo_norm,
+  expr_endo   = endom_norm,
   lr_table    = data_ligrecep
   )
 
@@ -210,12 +210,23 @@ ncol(vivo_matrix2)
 length(unique(colnames(vivo_matrix2)))
 ncol(vivo_matrix2) - length(unique(colnames(vivo_matrix2)))
 
+row_var <- apply(vivo_matrix2, 1, var, na.rm = TRUE)
+
+top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
+
+pheatmap(
+  vivo_matrix2[top_rows, ],
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  fontsize_row = 6,
+  filename = "figures/top_var_vivo.pdf"
+)
 
 # vitro matrix
 
 vitro_matrix <- build_lr_matrix(
-  expr_embryo = df_blastovivo_liganden,
-  expr_endo   = df_endom_receptors_voor_vivo,
+  expr_embryo = vitro_norm,
+  expr_endo   = endom_norm,
   lr_table    = data_ligrecep
 )
 
@@ -238,3 +249,16 @@ pheatmap(
 nrow(vitro_matrix2)
 length(unique(rownames(vitro_matrix2)))
 nrow(vitro_matrix2) - length(unique(rownames(vitro_matrix2)))
+
+
+row_var <- apply(vitro_matrix2, 1, var, na.rm = TRUE)
+
+top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
+
+pheatmap(
+  vitro_matrix2[top_rows, ],
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  fontsize_row = 6,
+  filename = "figures/top_var_vitro.pdf"
+)
