@@ -1,5 +1,7 @@
 #devtools::install_github("greenelab/TDM", build_vignettes = TRUE)
 #install.packages("data.table")
+#install.packages("glue")
+library(glue)
 library(TDM)
 library(ggplot2)
 library(data.table)
@@ -178,87 +180,113 @@ build_lr_matrix <- function(expr_embryo,
   return(M)
 }
 
+# Sanity check voor de matrix, checken op NA's en structuur
+matrix_sanity_check <- function(matrix) {
+    cat(
+      "Totaal aantal cellen:", length(matrix), "\n",
+      "NA:", sum(is.na(matrix)), "\n",
+      "Niet-NA:", sum(!is.na(matrix)), "\n",
+      "Percentage NA:", round(100 * mean(is.na(matrix)), 2), "%\n",
+      "Aantal volledige NA-kolommen:", sum(colSums(!is.na(matrix)) == 0), "\n",
+      "Aantal volledige NA-rijen:", sum(rowSums(!is.na(matrix)) == 0),
+      "Aantal rijnamen:", nrow(matrix),
+      "Aantal unieke rijnamen:", length(unique(rownames(matrix))),
+      "Aantal kolomnamen:", ncol(matrix),
+      "Aantal unieke kolomnamen", length(unique(colnames(matrix)))
+    )
+}
+
+# Kolommen en rijen filteren als ze volledig NA zijn
+filteren_matrix <- function(matrix) {
+  matrix2 <- matrix[
+    rowSums(!is.na(matrix)) > 0,
+    colSums(!is.na(matrix)) > 0,
+    drop = FALSE
+  ]
+  return(matrix2)
+}
+
 # Vivo matrix
 
-vivo_matrix <- build_lr_matrix(
-  expr_embryo = vivo_norm,
-  expr_endo   = endom_norm,
-  lr_table    = data_ligrecep
+make_matrix <- function(expr_embryo, naam_heatmap){
+  #matrix maken
+  matrix <- build_lr_matrix(
+    expr_embryo = expr_embryo,
+    expr_endo   = endom_norm,
+    lr_table    = data_ligrecep
   )
+  
+  #sanity checks
+  matrix_sanity_check(matrix)
+  
+  #filteren op NA kolommen en rijen
+  matrix2 <- filteren_matrix(matrix)
+  
+  #sanity check
+  matrix_sanity_check(matrix2)
+  
+  #Volledige heatmap maken
+  pheatmap(
+    matrix2, 
+    na_col = "grey90",
+    cluster_rows = FALSE,
+    cluster_cols = FALSE,
+    filename = glue("figures/{naam_heatmap}/heatmap.pdf")
+    )
+  
+  #Meest en minst variabele rijen laten zien
+  row_var <- apply(matrix2, 1, var, na.rm = TRUE)
 
-dim(vivo_matrix)
-sum(!is.na(vivo_matrix))
-
-vivo_matrix2 <- vivo_matrix[, colSums(!is.na(vivo_matrix)) > 0]
-
-dim(vivo_matrix2)
-sum(!is.na(vivo_matrix2))
-
-pheatmap(
-  vivo_matrix2, 
-  na_col = "grey90",
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  filename = "figures/heatmap_vivo.pdf"
+  #Meest en minst variabele kolommen laten zien
+  col_var <- apply(matrix2, 2, var, na.rm = TRUE)
+  
+  top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
+  bottom_rows <- names(sort(row_var, decreasing = FALSE))[1:100]
+  
+  top_cols <- names(sort(col_var, decreasing = TRUE))[1:100]
+  bottom_cols <- names(sort(col_var, decreasing = FALSE))[1:100]
+  
+  pheatmap(
+    matrix2[top_rows, ],
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    fontsize_row = 6,
+    filename = glue("figures/{naam_heatmap}/top_rows_var_heatmap.pdf")
   )
+  
+  pheatmap(
+    matrix2[bottom_rows, ],
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    fontsize_row = 6,
+    filename = glue("figures/{naam_heatmap}/bottom_rows_var_heatmap.pdf")
+  )
+  
+  pheatmap(
+    matrix2[, top_cols],
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    fontsize_row = 6,
+    filename = glue("figures/{naam_heatmap}/top_cols_var_heatmap.pdf")
+  )
+  
+  pheatmap(
+    matrix2[, bottom_cols],
+    cluster_rows = TRUE,
+    cluster_cols = FALSE,
+    fontsize_row = 6,
+    filename = glue("figures/{naam_heatmap}/bottom_cols_var_heatmap.pdf")
+  )
+  
+  return(matrix2)
+}
 
-nrow(vivo_matrix2)
-length(unique(rownames(vivo_matrix2)))
-nrow(vivo_matrix2) - length(unique(rownames(vivo_matrix2)))
-
-ncol(vivo_matrix2)
-length(unique(colnames(vivo_matrix2)))
-ncol(vivo_matrix2) - length(unique(colnames(vivo_matrix2)))
-
-row_var <- apply(vivo_matrix2, 1, var, na.rm = TRUE)
-
-top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
-
-pheatmap(
-  vivo_matrix2[top_rows, ],
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  fontsize_row = 6,
-  filename = "figures/top_var_vivo.pdf"
+vivo_matrix <- make_matrix(
+  expr_embryo = vivo_norm, 
+  naam_heatmap = "vivo"
 )
 
-# vitro matrix
-
-vitro_matrix <- build_lr_matrix(
-  expr_embryo = vitro_norm,
-  expr_endo   = endom_norm,
-  lr_table    = data_ligrecep
-)
-
-dim(vitro_matrix)
-sum(!is.na(vitro_matrix))
-
-vitro_matrix2 <- vitro_matrix[, colSums(!is.na(vitro_matrix)) > 0]
-
-dim(vitro_matrix2)
-sum(!is.na(vitro_matrix2))
-
-pheatmap(
-  vitro_matrix2, 
-  na_col = "grey90",
-  cluster_rows = FALSE,
-  cluster_cols = FALSE,
-  filename = "figures/heatmap_vitro.pdf"
-)
-
-nrow(vitro_matrix2)
-length(unique(rownames(vitro_matrix2)))
-nrow(vitro_matrix2) - length(unique(rownames(vitro_matrix2)))
-
-
-row_var <- apply(vitro_matrix2, 1, var, na.rm = TRUE)
-
-top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
-
-pheatmap(
-  vitro_matrix2[top_rows, ],
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  fontsize_row = 6,
-  filename = "figures/top_var_vitro.pdf"
+vitro_matrix <- make_matrix(
+  expr_embryo = vitro_norm, 
+  naam_heatmap = "vitro"
 )
