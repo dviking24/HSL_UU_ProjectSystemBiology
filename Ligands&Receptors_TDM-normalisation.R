@@ -294,7 +294,7 @@ vitro_matrix <- make_matrix(
   naam_heatmap = "vitro"
 )
 
-# # Meest en minst variabele rijen laten zien
+# ## Meest en minst variabele rijen laten zien
 # row_var <- apply(vivo_matrix, 1, var, na.rm = TRUE)
 # 
 # # Meest en minst variabele kolommen laten zien
