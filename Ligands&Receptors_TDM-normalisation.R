@@ -290,3 +290,34 @@ vitro_matrix <- make_matrix(
   expr_embryo = vitro_norm, 
   naam_heatmap = "vitro"
 )
+
+# # Meest en minst variabele rijen laten zien
+# row_var <- apply(vivo_matrix, 1, var, na.rm = TRUE)
+# 
+# # Meest en minst variabele kolommen laten zien
+# col_var <- apply(vivo_matrix, 2, var, na.rm = TRUE)
+# 
+# top_rows <- names(sort(row_var, decreasing = TRUE))[1:40]
+# bottom_rows <- names(sort(row_var, decreasing = FALSE))[1:40]
+# 
+# top_cols <- names(sort(col_var, decreasing = TRUE))[1:40]
+# bottom_cols <- names(sort(col_var, decreasing = FALSE))[1:40]
+# 
+# 
+# pheatmap(
+#   vitro_matrix[top_rows, top_cols],
+#   cluster_rows = TRUE,
+#   cluster_cols = FALSE,
+#   fontsize_row = 6,
+#   fontsize_col = 6,
+#   filename = glue("figures/vitro/top_rows_top_cols_var_heatmap.pdf")
+# )
+# 
+# top_40_vitro <- vitro_matrix[top_rows, top_cols]
+# top_40_vivo <- vivo_matrix[top_rows, top_cols]
+# View(top_40_vitro)
+# View(top_40_vivo)
+# 
+# View(data_ligrecep)
+# View(endom_norm)
+# View(vivo_norm)
