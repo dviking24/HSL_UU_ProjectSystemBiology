@@ -98,7 +98,7 @@ head(liganden)
 head(receptors)
 
 
-# Filteren naar liganden/receptors 
+# Filteren naar liganden/receptors <-- dit wordt niet gebruikt
 df_blastovivo_liganden     <- vivo_norm[rownames(vivo_norm) %in% liganden, ]
 df_blastovivo_receptors    <- vivo_norm[rownames(vivo_norm) %in% receptors, ]
 df_blastovivo_ligreceptors <- vivo_norm[rownames(vivo_norm) %in% ligreceptors, ]
@@ -120,6 +120,9 @@ df_endom_ligreceptors_voor_vitro <- endom_norm_v[rownames(endom_norm_v) %in% lig
 head(rownames(df_endom_liganden_voor_vivo))
 head(rownames(df_blastovivo_receptors))
 
+
+
+#//------------------------------------MAKING THE MATRICES--------------------------------------------------------//
 #making the matrice
 
 
@@ -290,3 +293,34 @@ vitro_matrix <- make_matrix(
   expr_embryo = vitro_norm, 
   naam_heatmap = "vitro"
 )
+
+# # Meest en minst variabele rijen laten zien
+# row_var <- apply(vivo_matrix, 1, var, na.rm = TRUE)
+# 
+# # Meest en minst variabele kolommen laten zien
+# col_var <- apply(vivo_matrix, 2, var, na.rm = TRUE)
+# 
+# top_rows <- names(sort(row_var, decreasing = TRUE))[1:40]
+# bottom_rows <- names(sort(row_var, decreasing = FALSE))[1:40]
+# 
+# top_cols <- names(sort(col_var, decreasing = TRUE))[1:40]
+# bottom_cols <- names(sort(col_var, decreasing = FALSE))[1:40]
+# 
+# 
+# pheatmap(
+#   vitro_matrix[top_rows, top_cols],
+#   cluster_rows = TRUE,
+#   cluster_cols = FALSE,
+#   fontsize_row = 6,
+#   fontsize_col = 6,
+#   filename = glue("figures/vitro/top_rows_top_cols_var_heatmap.pdf")
+# )
+# 
+# top_40_vitro <- vitro_matrix[top_rows, top_cols]
+# top_40_vivo <- vivo_matrix[top_rows, top_cols]
+# View(top_40_vitro)
+# View(top_40_vivo)
+# 
+# View(data_ligrecep)
+# View(endom_norm)
+# View(vivo_norm)
