@@ -125,29 +125,45 @@ head(rownames(df_blastovivo_receptors))
 #//------------------------------------MAKING THE MATRICES--------------------------------------------------------//
 #making the matrice
 
+standardize_names <- function(x) {
+  x <- gsub("nonPR", "NP", x)
+  x
+}
 
-build_lr_matrix <- function(expr_embryo,
-                            expr_endo,
+head(colnames(endom_norm))
+colnames(endom_norm) <- standardize_names(colnames(endom_norm))
+head(colnames(endom_norm))
+
+
+build_lr_matrix <- function(ligand_matr,
+                            receptor_matr,
                             lr_table) {
+  # Takes the unique ligand-receptor pairs
   data <- unique(
     lr_table[, c("ligand_ensembl", "receptor_ensembl")]
   )
   
+  # Gives the ligand receptor pairs a name
+  # ENSG1, ENSG123 --> ENSG1-ENSG123
   LR <- paste(
     data$ligand_ensembl,
     data$receptor_ensembl,
     sep = "-"
   )
   
+  # Gives all possible sample pairs a name
+  # Sample01, SampleEndo01 --> Sample01-SampleEndo01
+  
   sample_names <- as.vector(
     outer(
-      colnames(expr_embryo),
-      colnames(expr_endo),
+      colnames(ligand_matr),
+      colnames(receptor_matr),
       paste,
       sep = "-"
     )
   )
   
+  # Makes an empty matrix
   M <- matrix(
     NA_real_,
     nrow = nrow(data),
@@ -155,23 +171,25 @@ build_lr_matrix <- function(expr_embryo,
     dimnames = list(LR, sample_names)
   )
   
+  # Calculates the interaction score for echt ligand-receptor pair
+  
   for (i in seq_len(nrow(data))) {
     
     ligand <- data$ligand_ensembl[i]
     receptor <- data$receptor_ensembl[i]
     
-    if (!(ligand %in% rownames(expr_embryo))) next
-    if (!(receptor %in% rownames(expr_endo))) next
+    if (!(ligand %in% rownames(ligand_matr))) next
+    if (!(receptor %in% rownames(receptor_matr))) next
     
     col_idx <- 1
     
-    for (emb_col in colnames(expr_embryo)) {
+    for (lig_col in colnames(ligand_matr)) {
       
-      lig_expr <- expr_embryo[ligand, emb_col]
+      lig_expr <- ligand_matr[ligand, lig_col]
       
-      for (endo_col in colnames(expr_endo)) {
+      for (rec_col in colnames(receptor_matr)) {
         
-        rec_expr <- expr_endo[receptor, endo_col]
+        rec_expr <- receptor_matr[receptor, rec_col]
         
         M[i, col_idx] <- lig_expr * rec_expr
         
@@ -211,11 +229,11 @@ filteren_matrix <- function(matrix) {
 
 # Vivo matrix
 
-make_matrix <- function(expr_embryo, naam_heatmap){
+make_matrix <- function(ligand_m, receptor_m, naam_heatmap){
   #matrix maken
   matrix <- build_lr_matrix(
-    expr_embryo = expr_embryo,
-    expr_endo   = endom_norm,
+    ligand_matr = ligand_m,
+    receptor_matr   = receptor_m,
     lr_table    = data_ligrecep
   )
   
@@ -284,14 +302,71 @@ make_matrix <- function(expr_embryo, naam_heatmap){
   return(matrix2)
 }
 
-vivo_matrix <- make_matrix(
-  expr_embryo = vivo_norm, 
-  naam_heatmap = "vivo"
+# Grote vivo matrix maken
+
+vivo_lig_matrix <- make_matrix(
+  ligand_m = vivo_norm, 
+  receptor_m = endom_norm,
+  naam_heatmap = "vivo_lig"
 )
 
-vitro_matrix <- make_matrix(
-  expr_embryo = vitro_norm, 
-  naam_heatmap = "vitro"
+vivo_rec_matrix <- make_matrix(
+  ligand_m = endom_norm, 
+  receptor_m = vivo_norm,
+  naam_heatmap = "vivo_rec"
+)
+
+vivo_matrix <- rbind(vivo_lig_matrix, vivo_rec_matrix)
+
+pheatmap(
+  vivo_matrix,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  fontsize_row = 6,
+  filename = glue("figures/vivo/heatmap.pdf")
+)
+
+# opslaan als matrices/vitro_matrix.tsv
+
+write.table(
+  vivo_matrix,
+  file = "matrices/vivo_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+
+# Grote vitro matrix maken
+
+vitro_lig_matrix <- make_matrix(
+  ligand_m = vitro_norm, 
+  receptor_m = endom_norm,
+  naam_heatmap = "vitro_lig"
+)
+
+vitro_rec_matrix <- make_matrix(
+  ligand_m = endom_norm, 
+  receptor_m = vitro_norm,
+  naam_heatmap = "vitro_rec"
+)
+
+vitro_matrix <- rbind(vitro_lig_matrix, vitro_rec_matrix)
+
+pheatmap(
+  vitro_matrix,
+  cluster_rows = TRUE,
+  cluster_cols = TRUE,
+  fontsize_row = 6,
+  filename = glue("figures/vitro/heatmap.pdf")
+)
+
+# opslaan als matrices/vitro_matrix.tsv
+write.table(
+  vitro_matrix,
+  file = "matrices/vitro_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
 )
 
 # Meest en minst variabele rijen laten zien
@@ -324,4 +399,5 @@ vitro_matrix <- make_matrix(
 # 
 # View(data_ligrecep)
 # View(endom_norm)
-# View(vivo_norm)
+View(vivo_matrix)
+
