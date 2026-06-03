@@ -10,7 +10,8 @@ meta_endom <- read.csv("Datasets/SampleInfo_Endom.txt", header = TRUE, sep = "\t
 meta_blastovivo <- read.csv("Datasets/SampleInfo_BlastoIVV.txt", header = TRUE, sep = "\t")
 meta_blastovitro <- read.csv("Datasets/SampleInfo_BlastoIVT.txt", header = TRUE, sep = "\t")
 
-
+#install.packages("ggplot2")
+library(ggplot2)
 
 # --- data exploration --- 
 # samplecolumns in endom:
@@ -141,3 +142,6 @@ pca_plot(data_blastovitro, ifelse(grepl("_PR_", colnames(data_blastovitro)), "PR
 boxplot(data_endom, las = 2, cex.axis = 0.5, main = "Endom")
 boxplot(data_blastovivo, las = 2, cex.axis = 0.5, main = "Blasto in vivo")
 boxplot(data_blastovitro, las = 2, cex.axis = 0.5, main = "Blasto in vitro")
+
+
+

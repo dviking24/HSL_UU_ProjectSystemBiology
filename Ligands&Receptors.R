@@ -85,3 +85,5 @@ df_blastovitro_ligreceptors <- vitro_norm[rownames(vitro_norm) %in% ligreceptors
 df_endom_liganden_voor_vitro     <- endom_norm_v[rownames(endom_norm_v) %in% liganden, ]
 df_endom_receptors_voor_vitro    <- endom_norm_v[rownames(endom_norm_v) %in% receptors, ]
 df_endom_ligreceptors_voor_vitro <- endom_norm_v[rownames(endom_norm_v) %in% ligreceptors, ]
+
+
