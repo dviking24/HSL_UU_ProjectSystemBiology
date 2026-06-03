@@ -57,8 +57,8 @@ vitro_training_set <- vitro_matrix2[vitro_train_index, ]
 vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 
 
-# training Random Forest model
-# vivo, ~40-45 min.
+# training, predicting and evualting Random Forest models:
+# ----- vivo, ~40-45 min. -----
 # model_rf_vivo <- train(PregnancyStatus ~ ., data = vivo_training_set, method = "ranger", importance = "impurity")
 
 # save the trained model as .rds
@@ -73,9 +73,30 @@ predict_rf_vivo <- predict(model_rf_vivo, vivo_test_set)
 
 
 # evaluate performance using a confusion matrix
-cm_rf <- confusionMatrix(predict_rf_vivo, vivo_test_set$PregnancyStatus)
-print(cm_rf)
+cm_rf_vivo <- confusionMatrix(predict_rf_vivo, vivo_test_set$PregnancyStatus)
+print(cm_rf_vivo)
 
 # display feature importance
-print(varImp(model_rf))
+print(varImp(model_rf_vivo))
 
+
+# ----- vitro, ~40-45 min. -----
+#model_rf_vitro <- train(PregnancyStatus ~ ., data = vitro_training_set, method = "ranger", importance = "impurity")
+
+# save the trained model as .rds
+#saveRDS(model_rf_vitro, "models/rf_model_vitro.rds")
+
+# load trained model from RDS-file instead of training manually
+model_rf_vitro <- readRDS(file = "models/rf_model_vitro.rds")
+
+
+# predicting the test-set using Random Forest model
+predict_rf_vitro <- predict(model_rf_vitro, vitro_test_set)
+
+
+# evaluate performance using a confusion matrix
+cm_rf_vitro <- confusionMatrix(predict_rf_vitro, vitro_test_set$PregnancyStatus)
+print(cm_rf_vitro)
+
+# display feature importance
+print(varImp(model_rf_vitro))
