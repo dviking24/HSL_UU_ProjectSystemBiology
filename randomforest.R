@@ -62,10 +62,20 @@ vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 # model_rf_vivo <- train(PregnancyStatus ~ ., data = vivo_training_set, method = "ranger", importance = "impurity")
 
 # save the trained model as .rds
-saveRDS(model_rf_vivo, "models/rf_model_vivo.rds")
+# saveRDS(model_rf_vivo, "models/rf_model_vivo.rds")
 
 # load trained model from RDS-file instead of training manually
 model_rf_vivo <- readRDS(file = "models/rf_model_vivo.rds")
 
 
+# predicting the test-set using Random Forest model
+predict_rf_vivo <- predict(model_rf_vivo, vivo_test_set)
+
+
+# evaluate performance using a confusion matrix
+cm_rf <- confusionMatrix(predict_rf_vivo, vivo_test_set$PregnancyStatus)
+print(cm_rf)
+
+# display feature importance
+print(varImp(model_rf))
 
