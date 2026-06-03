@@ -40,18 +40,21 @@ vitro_matrix2 <- cbind(
 
 
 # train-test split
-# setting seed
-set.seed(64)
+set.seed(64) # setting seed
 
 # vivo
-# converts 'PregnancyStatus' target variable to a factor for classification
-vivo_matrix2$PregnancyStatus <- factor(vivo_matrix2$PregnancyStatus)
+vivo_matrix2$PregnancyStatus <- factor(vivo_matrix2$PregnancyStatus) # converts 'PregnancyStatus' target variable to a factor for classification
 
-vivo_train_index <- createDataPartition(vivo_matrix2$PregnancyStatus, p = 0.8, list = FALSE)
+vivo_train_index <- createDataPartition(vivo_matrix2$PregnancyStatus, p = 0.8, list = FALSE) # 80/20 split
 vivo_training_set <- vivo_matrix2[vivo_train_index, ]
 vivo_test_set <- vivo_matrix2[-vivo_train_index, ]
 
+# vitro
+vitro_matrix2$PregnancyStatus <- factor(vitro_matrix2$PregnancyStatus) # converts 'PregnancyStatus' target variable to a factor for classification
 
+vitro_train_index <- createDataPartition(vitro_matrix2$PregnancyStatus, p = 0.8, list = FALSE) # 80/20 split
+vitro_training_set <- vitro_matrix2[vitro_train_index, ]
+vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 
 
 
