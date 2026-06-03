@@ -64,11 +64,11 @@ vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 # save the trained model as .rds
 # saveRDS(model_rf_vivo, "models/rf_model_vivo.rds")
 
-# load trained model from RDS-file instead of training manually
+# load trained vivo rf-model from RDS-file instead of training manually
 model_rf_vivo <- readRDS(file = "models/rf_model_vivo.rds")
 
 
-# predicting the test-set using Random Forest model
+# predicting the vivo test-set using Random Forest model
 predict_rf_vivo <- predict(model_rf_vivo, vivo_test_set)
 
 
@@ -86,11 +86,11 @@ print(varImp(model_rf_vivo))
 # save the trained model as .rds
 #saveRDS(model_rf_vitro, "models/rf_model_vitro.rds")
 
-# load trained model from RDS-file instead of training manually
+# load trained vitro rf-model from RDS-file instead of training manually
 model_rf_vitro <- readRDS(file = "models/rf_model_vitro.rds")
 
 
-# predicting the test-set using Random Forest model
+# predicting the vitro test-set using Random Forest model
 predict_rf_vitro <- predict(model_rf_vitro, vitro_test_set)
 
 
@@ -100,3 +100,4 @@ print(cm_rf_vitro)
 
 # display feature importance
 print(varImp(model_rf_vitro))
+
