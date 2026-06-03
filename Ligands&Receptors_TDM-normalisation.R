@@ -332,7 +332,7 @@ vivo_rec_matrix <- make_matrix(
   naam_heatmap = "vivo_rec"
 )
 
-vivo_matrix <- rbind(vivo_lig_matrix, vivo_rec_matrix)
+vivo_matrix <- cbind(vivo_lig_matrix, vivo_rec_matrix)
 
 pheatmap(
   vivo_matrix,
@@ -366,7 +366,7 @@ vitro_rec_matrix <- make_matrix(
   naam_heatmap = "vitro_rec"
 )
 
-vitro_matrix <- rbind(vitro_lig_matrix, vitro_rec_matrix)
+vitro_matrix <- cbind(vitro_lig_matrix, vitro_rec_matrix)
 
 pheatmap(
   vitro_matrix,
@@ -415,5 +415,3 @@ write.table(
 # 
 # View(data_ligrecep)
 # View(endom_norm)
-View(vivo_matrix)
-
