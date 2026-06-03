@@ -57,5 +57,15 @@ vitro_training_set <- vitro_matrix2[vitro_train_index, ]
 vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 
 
+# training Random Forest model
+# vivo, ~40-45 min.
+# model_rf_vivo <- train(PregnancyStatus ~ ., data = vivo_training_set, method = "ranger", importance = "impurity")
+
+# save the trained model as .rds
+saveRDS(model_rf_vivo, "models/rf_model_vivo.rds")
+
+# load trained model from RDS-file instead of training manually
+model_rf_vivo <- readRDS(file = "models/rf_model_vivo.rds")
+
 
 
