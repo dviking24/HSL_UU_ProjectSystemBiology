@@ -415,3 +415,5 @@ write.table(
 # 
 # View(data_ligrecep)
 # View(endom_norm)
+View(vivo_matrix)
+
