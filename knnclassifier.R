@@ -57,3 +57,9 @@ vitro_test_features <- features[-vitro_train_index, ]
 vitro_train_labels <- labels[vitro_train_index]
 vitro_test_labels <- labels[-vitro_train_index]
 
+
+# training and predicting KNN-Classifier models:
+# ----- vivo -----
+knn_pred_vivo <- knn(vivo_train_features, vivo_test_features, vivo_train_labels, k = 5)
+
+
