@@ -1,3 +1,8 @@
+#remove NP-PR
+
+#take different seeds
+
+
 #devtools::install_github("greenelab/TDM", build_vignettes = TRUE)
 #install.packages("data.table")
 #install.packages("glue")
@@ -415,5 +420,32 @@ write.table(
 # 
 # View(data_ligrecep)
 # View(endom_norm)
-View(vivo_matrix)
+#Meest en minst variabele rijen laten zien
 
+row_var <- apply(vivo_matrix, 1, var, na.rm = TRUE)
+top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
+
+pheatmap(
+  vivo_matrix[top_rows, ],
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  fontsize_row = 6,
+  filename = glue("figures/vivo/top_rows_var_heatmap.pdf")
+)
+
+row_var <- apply(vitro_matrix, 1, var, na.rm = TRUE)
+top_rows <- names(sort(row_var, decreasing = TRUE))[1:40]
+
+col_var <- apply(vitro_matrix, 2, var, na.rm = TRUE)
+top_cols <- names(sort(col_var, decreasing = TRUE))[1:20]
+bottom_cols <- names(sort(col_var, decreasing = FALSE))[1:20]
+all_cols <- c(top_cols, bottom_cols)
+
+pheatmap(
+  vitro_matrix[top_rows, all_cols],
+  cluster_rows = TRUE,
+  cluster_cols = FALSE,
+  fontsize_row = 6,
+  fontsize_col = 6,
+  filename = glue("figures/vitro/top_heatmap.pdf")
+)
