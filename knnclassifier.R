@@ -62,9 +62,39 @@ vitro_test_labels <- labels[-vitro_train_index]
 # ----- vivo -----
 knn_pred_vivo <- knn(vivo_train_features, vivo_test_features, vivo_train_labels, k = 5)
 
+# Confusion Matrix
 print(confusionMatrix(knn_pred_vivo, vivo_test_labels))
 
-# ----- vitro -----
-knn_pred_vivo <- knn(vitro_train_features, vitro_test_features, vitro_train_labels, k = 5)
+# Plot
+test_data_vivo <- cbind(vivo_test_features, Predicted = knn_pred_vivo)
+ggplot(
+  test_data_vivo,
+  aes(
+    x = `ENSBTAG00000017664-ENSBTAG00000019712`,
+    y = `ENSBTAG00000001141-ENSBTAG00000013745`,
+    color = Predicted
+  )
+) +
+  geom_point(size = 3) +
+  labs(title = "K-NN Predictions on Vivo Test Data") +
+  theme_minimal()
 
+# ----- vitro -----
+knn_pred_vitro <- knn(vitro_train_features, vitro_test_features, vitro_train_labels, k = 5)
+
+# Confusion Matrix
 print(confusionMatrix(knn_pred_vitro, vitro_test_labels))
+
+# plot
+test_data_vitro <- cbind(vitro_test_features, Predicted = knn_pred_vitro)
+ggplot(
+  test_data_vitro,
+  aes(
+    x = `ENSBTAG00000017664-ENSBTAG00000019712`,
+    y = `ENSBTAG00000001141-ENSBTAG00000013745`,
+    color = Predicted
+  )
+) +
+  geom_point(size = 3) +
+  labs(title = "K-NN Predictions on Vitro Test Data") +
+  theme_minimal()
