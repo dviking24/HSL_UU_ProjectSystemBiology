@@ -68,18 +68,18 @@ knn_pred_vivo <- knn(vivo_train_features, vivo_test_features, vivo_train_labels,
 # Confusion Matrix
 print(confusionMatrix(knn_pred_vivo, vivo_test_labels))
 
-# Plot
-test_data_vivo <- cbind(vivo_test_features, Predicted = knn_pred_vivo)
-ggplot(
-  test_data_vivo,
-  aes(
-    x = `ENSBTAG00000017664-ENSBTAG00000019712`,
-    y = `ENSBTAG00000001141-ENSBTAG00000013745`,
-    color = Predicted
-  )
-) +
+# PCA plot
+pca_vivo <- prcomp(vivo_test_features, scale. = TRUE)
+
+pca_df_vivo <- data.frame(
+  PC1 = pca_vivo$x[,1],
+  PC2 = pca_vivo$x[,2],
+  Predicted = knn_pred_vivo
+)
+
+ggplot(pca_df_vivo, aes(PC1, PC2, color = Predicted)) +
   geom_point(size = 3) +
-  labs(title = "K-NN Predictions on Vivo Test Data") +
+  labs(title = "K-NN Predictions PCA on Vivo Test Data") +
   theme_minimal()
 
 
@@ -89,16 +89,16 @@ knn_pred_vitro <- knn(vitro_train_features, vitro_test_features, vitro_train_lab
 # Confusion Matrix
 print(confusionMatrix(knn_pred_vitro, vitro_test_labels))
 
-# plot
-test_data_vitro <- cbind(vitro_test_features, Predicted = knn_pred_vitro)
-ggplot(
-  test_data_vitro,
-  aes(
-    x = `ENSBTAG00000017664-ENSBTAG00000019712`,
-    y = `ENSBTAG00000001141-ENSBTAG00000013745`,
-    color = Predicted
-  )
-) +
+# PCA plot
+pca_vitro <- prcomp(vitro_test_features, scale. = TRUE)
+
+pca_df_vitro <- data.frame(
+  PC1 = pca_vitro$x[,1],
+  PC2 = pca_vitro$x[,2],
+  Predicted = knn_pred_vitro
+)
+
+ggplot(pca_df_vitro, aes(PC1, PC2, color = Predicted)) +
   geom_point(size = 3) +
-  labs(title = "K-NN Predictions on Vitro Test Data") +
+  labs(title = "K-NN Predictions PCA on Vitro Test Data") +
   theme_minimal()
