@@ -57,7 +57,7 @@ vitro_training_set <- vitro_matrix2[vitro_train_index, ]
 vitro_test_set <- vitro_matrix2[-vitro_train_index, ]
 
 
-# training, predicting and evualting Random Forest models:
+# training, predicting and evaluating Random Forest models:
 # ----- vivo, ~40-45 min. -----
 # model_rf_vivo <- train(PregnancyStatus ~ ., data = vivo_training_set, method = "ranger", importance = "impurity")
 
@@ -80,6 +80,15 @@ print(cm_rf_vivo)
 print(varImp(model_rf_vivo))
 
 
+# Overfitting-check
+# test performance
+pred_train_vivo <- predict(model_rf_vivo, vivo_training_set)
+cm_train_vivo <- confusionMatrix(pred_train_vivo,
+                            vivo_training_set$PregnancyStatus)
+
+cm_train_vivo
+
+
 # ----- vitro, ~40-45 min. -----
 #model_rf_vitro <- train(PregnancyStatus ~ ., data = vitro_training_set, method = "ranger", importance = "impurity")
 
@@ -100,4 +109,14 @@ print(cm_rf_vitro)
 
 # display feature importance
 print(varImp(model_rf_vitro))
+
+
+# Overfitting-check
+# test performance
+pred_train_vitro <- predict(model_rf_vitro, vitro_training_set)
+cm_train_vitro <- confusionMatrix(pred_train_vitro,
+                                 vitro_training_set$PregnancyStatus)
+
+cm_train_vitro
+
 
