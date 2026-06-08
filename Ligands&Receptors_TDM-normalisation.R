@@ -170,14 +170,33 @@ build_lr_matrix <- function(ligand_matr,
   # Gives all possible sample pairs a name
   # Sample01, SampleEndo01 --> Sample01-SampleEndo01
   
-  sample_names <- as.vector(
-    outer(
-      colnames(ligand_matr),
-      colnames(receptor_matr),
-      paste,
-      sep = "-"
-    )
+  sample_name_pairs <- expand.grid(
+    lig = colnames(ligand_matr),
+    rec = colnames(receptor_matr),
+    stringsAsFactors = FALSE
   )
+  
+  sample_name_pairs$pair <- paste(
+    sample_name_pairs$lig,
+    sample_name_pairs$rec,
+    sep = "-"
+  )
+  
+  sample_name_pairs$type <- ifelse(
+    (grepl("NP", sample_name_pairs$lig) & grepl("PR", sample_name_pairs$rec)) |
+      (grepl("PR", sample_name_pairs$lig) & grepl("NP", sample_name_pairs$rec)),
+    "INVALID",
+    "VALID"
+  )
+  
+  valid_pairs <- sample_name_pairs[sample_name_pairs$type == "VALID", ]
+  
+  sample_names <- valid_pairs$pair
+  
+  col_index <- setNames(seq_along(sample_names), sample_names)
+  
+  valid_lookup <- setNames(rep(TRUE, length(sample_names)), sample_names)
+  
   
   # Makes an empty matrix
   M <- matrix(
@@ -187,6 +206,7 @@ build_lr_matrix <- function(ligand_matr,
     dimnames = list(LR, sample_names)
   )
   
+  
   # Calculates the interaction score for echt ligand-receptor pair
   
   for (i in seq_len(nrow(data))) {
@@ -194,26 +214,39 @@ build_lr_matrix <- function(ligand_matr,
     ligand <- data$ligand_ensembl[i]
     receptor <- data$receptor_ensembl[i]
     
+    # skip als genen niet bestaan in matrices
     if (!(ligand %in% rownames(ligand_matr))) next
     if (!(receptor %in% rownames(receptor_matr))) next
     
-    col_idx <- 1
+    # expression ophalen (1x per ligand-receptor pair per sample-combo)
+    lig_expr_all <- ligand_matr[ligand, , drop = TRUE]
+    rec_expr_all <- receptor_matr[receptor, , drop = TRUE]
     
-    for (lig_col in colnames(ligand_matr)) {
+    for (lig_col in names(lig_expr_all)) {
       
-      lig_expr <- ligand_matr[ligand, lig_col]
+      lig_expr <- lig_expr_all[lig_col]
       
-      for (rec_col in colnames(receptor_matr)) {
+      for (rec_col in names(rec_expr_all)) {
         
-        rec_expr <- receptor_matr[receptor, rec_col]
+        rec_expr <- rec_expr_all[rec_col]
         
-        M[i, col_idx] <- lig_expr * rec_expr
+        # sample pair naam
+        pair_name <- paste(lig_col, rec_col, sep = "-")
         
-        col_idx <- col_idx + 1
+        # alleen valid pairs gebruiken
+        if (is.na(valid_lookup[pair_name])) next
+        
+        # kolom index opzoeken
+        idx <- col_index[[pair_name]]
+        
+        # safety check
+        if (is.null(idx)) next
+        
+        # score berekenen
+        M[i, idx] <- lig_expr * rec_expr
       }
     }
   }
-  
   return(M)
 }
 
@@ -318,6 +351,27 @@ make_matrix <- function(ligand_m, receptor_m, naam_heatmap){
   return(matrix2)
 }
 
+control_PR_NP <- function(matrix) {
+  PR_pairs <- colnames(matrix)[
+    (grepl("PR", colnames(matrix)))
+  ]
+  
+  NP_pairs <- colnames(matrix)[
+    (grepl("NP", colnames(matrix)))
+  ]
+  
+  
+  cat("length PR pairs:", length(PR_pairs), "\n")
+  head(PR_pairs)
+  
+  cat("length NP pairs:", length(NP_pairs), "\n")
+  head(NP_pairs)
+  
+  cat("length total pairs:", length(colnames(matrix)), "\n")
+  head(colnames(matrix))
+  cat("sum of PR and NP pairs", length(PR_pairs)+length(NP_pairs))
+}
+
 # Grote vivo matrix maken
 
 vivo_lig_matrix <- make_matrix(
@@ -341,6 +395,8 @@ pheatmap(
   fontsize_row = 6,
   filename = glue("figures/vivo/heatmap.pdf")
 )
+
+control_PR_NP(vivo_matrix)
 
 # opslaan als matrices/vitro_matrix.tsv
 
@@ -375,6 +431,8 @@ pheatmap(
   fontsize_row = 6,
   filename = glue("figures/vitro/heatmap.pdf")
 )
+
+control_PR_NP(vitro_matrix)
 
 # opslaan als matrices/vitro_matrix.tsv
 write.table(
@@ -414,4 +472,5 @@ write.table(
 # View(top_40_vivo)
 # 
 # View(data_ligrecep)
-# View(endom_norm)
+
+
