@@ -64,4 +64,7 @@ knn_pred_vivo <- knn(vivo_train_features, vivo_test_features, vivo_train_labels,
 
 print(confusionMatrix(knn_pred_vivo, vivo_test_labels))
 
+# ----- vitro -----
+knn_pred_vivo <- knn(vitro_train_features, vitro_test_features, vitro_train_labels, k = 5)
 
+print(confusionMatrix(knn_pred_vitro, vitro_test_labels))
