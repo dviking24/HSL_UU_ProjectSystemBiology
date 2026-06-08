@@ -38,7 +38,7 @@ vitro_matrix2 <- cbind(
 )
 
 features <- vivo_matrix2[, -1] # select all but first column ('PregnancyStatus') as features
-labels <- vivo_matrix2$PregnancyStatus
+labels <- factor(vivo_matrix2$PregnancyStatus)
 
 # train-test split
 set.seed(64) # setting seed
@@ -58,8 +58,10 @@ vitro_train_labels <- labels[vitro_train_index]
 vitro_test_labels <- labels[-vitro_train_index]
 
 
-# training and predicting KNN-Classifier models:
+# training, predicting and evaluating KNN-Classifier models:
 # ----- vivo -----
 knn_pred_vivo <- knn(vivo_train_features, vivo_test_features, vivo_train_labels, k = 5)
+
+print(confusionMatrix(knn_pred_vivo, vivo_test_labels))
 
 
