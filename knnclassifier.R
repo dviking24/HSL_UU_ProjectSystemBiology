@@ -37,25 +37,28 @@ vitro_matrix2 <- cbind(
   vitro_matrix
 )
 
-features <- vivo_matrix2[, -1] # select all but first column ('PregnancyStatus') as features
-labels <- factor(vivo_matrix2$PregnancyStatus)
-
 # train-test split
 set.seed(64) # setting seed
 
 # vivo
+features_vivo <- vivo_matrix2[, -1] # select all but first column ('PregnancyStatus') as features
+labels_vivo <- factor(vivo_matrix2$PregnancyStatus)
+
 vivo_train_index <- createDataPartition(vivo_matrix2$PregnancyStatus, p = 0.8, list = FALSE) # 80/20 split
-vivo_train_features <- features[vivo_train_index, ]
-vivo_test_features <- features[-vivo_train_index, ]
-vivo_train_labels <- labels[vivo_train_index]
-vivo_test_labels <- labels[-vivo_train_index]
+vivo_train_features <- features_vivo[vivo_train_index, ]
+vivo_test_features <- features_vivo[-vivo_train_index, ]
+vivo_train_labels <- labels_vivo[vivo_train_index]
+vivo_test_labels <- labels_vivo[-vivo_train_index]
 
 # vitro
+features_vitro <- vitro_matrix2[, -1]
+labels_vitro <- factor(vitro_matrix2$PregnancyStatus)
+
 vitro_train_index <- createDataPartition(vitro_matrix2$PregnancyStatus, p = 0.8, list = FALSE) # 80/20 split
-vitro_train_features <- features[vitro_train_index, ]
-vitro_test_features <- features[-vitro_train_index, ]
-vitro_train_labels <- labels[vitro_train_index]
-vitro_test_labels <- labels[-vitro_train_index]
+vitro_train_features <- features_vitro[vitro_train_index, ]
+vitro_test_features <- features_vitro[-vitro_train_index, ]
+vitro_train_labels <- labels_vitro[vitro_train_index]
+vitro_test_labels <- labels_vitro[-vitro_train_index]
 
 
 # training, predicting and evaluating KNN-Classifier models:
@@ -78,6 +81,7 @@ ggplot(
   geom_point(size = 3) +
   labs(title = "K-NN Predictions on Vivo Test Data") +
   theme_minimal()
+
 
 # ----- vitro -----
 knn_pred_vitro <- knn(vitro_train_features, vitro_test_features, vitro_train_labels, k = 5)
