@@ -40,17 +40,37 @@ vitro_matrix2 <- cbind(
 
 seeds <- c(64,28,21,94,41,12,53,22,17,62)
 
-results <- data.frame()
 
-for(seed in seeds){
-  cat("Running seed:", seed, "\n")
+run_rf_experiment <- function(data, dataset_name, seeds){
   
-  set.seed(seed)
+  results <- data.frame()
   
-  # do something
+  for(seed in seeds){
+    
+    cat("Running seed:", seed, "\n")
+    
+    set.seed(seed)
+    
+    # do something
+    
+    results <- rbind(
+      results,
+      data.frame(
+        Dataset = dataset_name,
+        Seed = seed,
+        Accuracy = "TEST"
+      )
+    )
+  }
   
+  return(results)
 }
 
-print(results)
-  
+
+
+vivo_results <- run_rf_experiment(
+  vivo_matrix2,
+  "vivo",
+  seeds
+)
 
