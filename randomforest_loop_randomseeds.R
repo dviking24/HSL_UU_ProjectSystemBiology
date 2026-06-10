@@ -38,5 +38,19 @@ vitro_matrix2 <- cbind(
 
 
 
+seeds <- c(64,28,21,94,41,12,53,22,17,62)
 
+results <- data.frame()
+
+for(seed in seeds){
+  cat("Running seed:", seed, "\n")
+  
+  set.seed(seed)
+  
+  # do something
+  
+}
+
+print(results)
+  
 
