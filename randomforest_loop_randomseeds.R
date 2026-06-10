@@ -38,9 +38,7 @@ vitro_matrix2 <- cbind(
 
 
 
-seeds <- c(64,28,21,94,41,12,53,22,17,62)
-
-
+# function for training, testing and evaluating different datasets on various seeds
 run_rf_experiment <- function(data, dataset_name, seeds){
   
   results <- data.frame()
@@ -61,23 +59,59 @@ run_rf_experiment <- function(data, dataset_name, seeds){
     
     train_set <- data[train_index, ]
     test_set  <- data[-train_index, ]
-    cat("TEST:", rownames(train_set[10,]), train_set[10,2], "\n") 
     
     
+    # train model
+    model <- train(
+      PregnancyStatus ~ .,
+      data = train_set,
+      method = "ranger",
+      importance = "impurity"
+    )
+    
+    
+    # save model RDS to folder
+    saveRDS(
+      model,
+      paste0(
+        "models/rf_",
+        dataset_name,
+        "_seed_",
+        seed,
+        ".rds"
+      )
+    )
+    
+    
+    # make predictions on test_set
+    pred_test <- predict(model, test_set)
+    
+    
+    # confusion matrix
+    cm <- confusionMatrix(
+      pred_test,
+      test_set$PregnancyStatus
+    )
+    
+    
+    # add run-statistics to results
     results <- rbind(
       results,
       data.frame(
         Dataset = dataset_name,
         Seed = seed,
-        Accuracy = "TEST"
+        Accuracy = cm$overall["Accuracy"],
+        Kappa = cm$overall["Kappa"]
       )
     )
   }
+  
   
   return(results)
 }
 
 
+seeds <- c(64,28,21,94,41,12,53,22,17,62)
 
 vivo_results <- run_rf_experiment(
   vivo_matrix2,
