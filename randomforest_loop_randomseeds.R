@@ -51,7 +51,18 @@ run_rf_experiment <- function(data, dataset_name, seeds){
     
     set.seed(seed)
     
-    # do something
+    
+    # train/test split
+    train_index <- createDataPartition(
+      data$PregnancyStatus,
+      p = 0.7,
+      list = FALSE
+    )
+    
+    train_set <- data[train_index, ]
+    test_set  <- data[-train_index, ]
+    cat("TEST:", rownames(train_set[10,]), train_set[10,2], "\n") 
+    
     
     results <- rbind(
       results,
@@ -73,4 +84,11 @@ vivo_results <- run_rf_experiment(
   "vivo",
   seeds
 )
+
+vitro_results <- run_rf_experiment(
+  vitro_matrix2,
+  "vitro",
+  seeds
+)
+
 
