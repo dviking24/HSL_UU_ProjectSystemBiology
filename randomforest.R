@@ -14,9 +14,31 @@ vitro_matrix <- read.csv("matrices/vitro_matrix.tsv", header = TRUE, sep = "\t",
 colnames(vivo_matrix)  <- gsub("\\.", "|", colnames(vivo_matrix))
 colnames(vitro_matrix) <- gsub("\\.", "|", colnames(vitro_matrix))
 
+# Function to keep only EMBRYO|ENDOMETRIUM columns
+keep_embryo_to_endo <- function(mat) {
+  
+  cols <- colnames(mat)
+  
+  split_cols <- strsplit(cols, "\\|")
+  
+  left_part  <- sapply(split_cols, `[`, 1)
+  right_part <- sapply(split_cols, `[`, 2)
+  
+  # embryo identifiers
+  is_embryo_left <- grepl("^(Zo|SW)_", left_part)
+  
+  # endometrium identifiers
+  is_endo_right <- grepl("^(NP|PR)_", right_part)
+  
+  mat[, is_embryo_left & is_endo_right, drop = FALSE]
+}
+
+vivo_matrix_emb2endo  <- keep_embryo_to_endo(vivo_matrix)
+vitro_matrix_emb2endo <- keep_embryo_to_endo(vitro_matrix)
+
 # transpose data.frames
-vivo_matrix <- as.data.frame(t(vivo_matrix))
-vitro_matrix <- as.data.frame(t(vitro_matrix))
+vivo_matrix <- as.data.frame(t(vivo_matrix_emb2endo))
+vitro_matrix <- as.data.frame(t(vitro_matrix_emb2endo))
 
 # add a 'PregnancyStatus'-column to the new data.frames, and fill this column for every row
 # ----- vivo -----
