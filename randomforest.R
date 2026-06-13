@@ -1,9 +1,12 @@
 # ===== IMPORTS =====
 #install.packages("caret")
 #install.packages("ranger")
+#install.packages("dplyr")
+#install.packages("treeshap")
 library(caret)
 library(ranger)
 library(dplyr)
+library(treeshap)
 
 
 
@@ -17,9 +20,7 @@ colnames(vitro_matrix) <- gsub("\\.", "|", colnames(vitro_matrix))
 
 # Function to keep only EMBRYO|ENDOMETRIUM columns
 keep_embryo_to_endo <- function(mat) {
-  
   cols <- colnames(mat)
-  
   split_cols <- strsplit(cols, "\\|")
   
   left_part  <- sapply(split_cols, `[`, 1)
@@ -44,7 +45,6 @@ vitro_matrix <- as.data.frame(t(vitro_matrix_emb2endo))
 
 
 # ===== ADD 'PregnancyStatus' =====
-# add a 'PregnancyStatus'-column to the new data.frames, and fill this column for every row
 # ----- vivo -----
 rn <- rownames(vivo_matrix)
 vivo_matrix <- cbind(
@@ -56,9 +56,9 @@ vivo_matrix <- cbind(
   vivo_matrix
 )
 
-# ----- vitro -----
-vivo_matrix$PregnancyStatus <- factor(vivo_matrix$PregnancyStatus) # converts 'PregnancyStatus' target variable to a factor for classification
+vivo_matrix$PregnancyStatus <- factor(vivo_matrix$PregnancyStatus)
 
+# ----- vitro -----
 rn <- rownames(vitro_matrix)
 vitro_matrix <- cbind(
   PregnancyStatus = ifelse(
@@ -74,49 +74,31 @@ vitro_matrix$PregnancyStatus <- factor(vitro_matrix$PregnancyStatus)
 
 
 # ===== TRAIN-TEST SPLIT =====
-# ----- functions -----
 extract_entities <- function(df) {
-  
   rn <- rownames(df)
-  
   parts <- strsplit(rn, "\\|")
-  
   embryos <- unique(sapply(parts, `[`, 1))
   endos   <- unique(sapply(parts, `[`, 2))
   
-  list(
-    embryos = embryos,
-    endos = endos
-  )
+  list(embryos = embryos, endos = endos)
 }
 
-
 split_embryos <- function(embryos) {
-  
   list(
     NP = embryos[grepl("_NP_", embryos)],
     PR = embryos[grepl("_PR_", embryos)]
   )
 }
 
-
 split_endos <- function(endos) {
-  
   list(
     NP = endos[grepl("^NP_", endos)],
     PR = endos[grepl("^PR_", endos)]
   )
 }
 
-
-sample_entities <- function(embryos,
-                            endos,
-                            train_n = 5,
-                            test_n = 4,
-                            seed = 64) {
-  
+sample_entities <- function(embryos, endos, train_n = 5, test_n = 4, seed = 64) {
   set.seed(seed)
-  
   emb <- split_embryos(embryos)
   end <- split_endos(endos)
   
@@ -141,27 +123,19 @@ sample_entities <- function(embryos,
   list(
     train_embryos = c(train_emb_PR, train_emb_NP),
     test_embryos  = c(test_emb_PR, test_emb_NP),
-    
     train_endos = c(train_end_PR, train_end_NP),
     test_endos  = c(test_end_PR, test_end_NP)
   )
 }
 
-
 build_split <- function(df, split_info) {
-  
   rn <- rownames(df)
-  
   parts <- strsplit(rn, "\\|")
-  
   embryo <- sapply(parts, `[`, 1)
   endo   <- sapply(parts, `[`, 2)
   
-  train_idx <- embryo %in% split_info$train_embryos &
-    endo   %in% split_info$train_endos
-  
-  test_idx <- embryo %in% split_info$test_embryos &
-    endo   %in% split_info$test_endos
+  train_idx <- embryo %in% split_info$train_embryos & endo %in% split_info$train_endos
+  test_idx <- embryo %in% split_info$test_embryos & endo %in% split_info$test_endos
   
   list(
     train = df[train_idx, , drop = FALSE],
@@ -190,23 +164,58 @@ run_rf_experiment <- function(df, seed, dataset_name) {
   train_df <- splits$train
   test_df  <- splits$test
   
+  # ---- PREPARE DATA FOR TREESHAP (The 0/1 Trick) ----
+  x_train <- train_df[, names(train_df) != "PregnancyStatus", drop = FALSE]
+  
+  # Convert Target to Numeric: NOT_PREGNANT = 0, PREGNANT = 1
+  y_train_num <- ifelse(train_df$PregnancyStatus == "PREGNANT", 1, 0)
+  
+  x_test  <- test_df[, names(test_df) != "PregnancyStatus", drop = FALSE]
+  
+  # Keep original factor for the Confusion Matrix
+  y_test_factor <- test_df$PregnancyStatus 
+  
   # ---- model ----
   model <- train(
-    PregnancyStatus ~ .,
-    data = train_df,
+    x = x_train,
+    y = y_train_num,      # Train on numeric 0 and 1
     method = "ranger",
     importance = "impurity"
   )
   
   # ---- predictions ----
-  preds <- predict(model, test_df)
-  cm <- confusionMatrix(preds, test_df$PregnancyStatus)
+  # Because we trained on 0/1, the model predicts a numeric probability of PREGNANT 
+  # (e.g., 0.85 means 85% confidence it is PREGNANT)
+  preds_prob <- predict(model, x_test)
   
-  # ---- feature importance ----
+  # Threshold at 0.5 to convert the probability back to class labels
+  preds_class <- ifelse(preds_prob > 0.5, "PREGNANT", "NOT_PREGNANT")
+  preds_factor <- factor(preds_class, levels = levels(y_test_factor))
+  
+  cm <- confusionMatrix(preds_factor, y_test_factor)
+  
+  # ---- base feature importance ----
   vi <- varImp(model)$importance
   vi_df <- data.frame(
     feature = rownames(vi),
     importance = vi[,1],
+    dataset = dataset_name,
+    seed = seed
+  )
+  
+  # ---- SHAP ANALYSIS ----
+  ranger_model <- model$finalModel
+  
+  # Unify and compute SHAP (This will now run smoothly as a numeric tree)
+  unified <- treeshap::unify(ranger_model, x_train)
+  shap_res <- treeshap::treeshap(unified, x_test, verbose = FALSE)
+  
+  # Aggregate Global SHAP Importance
+  mean_abs_shap <- colMeans(abs(shap_res$shaps))
+  
+  shap_df <- data.frame(
+    feature = names(mean_abs_shap),
+    shap_importance = unname(mean_abs_shap),
     dataset = dataset_name,
     seed = seed
   )
@@ -221,9 +230,11 @@ run_rf_experiment <- function(df, seed, dataset_name) {
   
   list(
     metrics = metrics,
-    importance = vi_df
+    importance = vi_df,
+    shap_importance = shap_df
   )
 }
+
 
 
 # ===== RUN PIPELINE =====
@@ -232,24 +243,22 @@ random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from
 
 # train, run and evaluate models on given vector of seeds
 results <- lapply(seeds, function(s) {
-  
   vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo")
   vitro_res <- run_rf_experiment(vitro_matrix, s, "vitro")
   
   list(
     metrics = rbind(vivo_res$metrics, vitro_res$metrics),
-    importance = rbind(vivo_res$importance, vitro_res$importance)
+    importance = rbind(vivo_res$importance, vitro_res$importance),
+    shap_importance = rbind(vivo_res$shap_importance, vitro_res$shap_importance)
   )
 })
 
 # combine results
 results_df <- do.call(rbind, lapply(results, `[[`, "metrics"))
 importance_df <- do.call(rbind, lapply(results, `[[`, "importance"))
+shap_df <- do.call(rbind, lapply(results, `[[`, "shap_importance"))
 
-# make summary & save results to file
-aggregate(accuracy ~ dataset, data = results_df, mean)
-aggregate(kappa ~ dataset, data = results_df, mean)
-
+# make summary & save results to files
 summary_stats <- results_df %>%
   group_by(dataset) %>%
   summarise(
@@ -268,21 +277,22 @@ importance_summary <- importance_df %>%
   ) %>%
   arrange(dataset, desc(mean_importance))
 
-print(results_df)
+shap_summary <- shap_df %>%
+  group_by(dataset, feature) %>%
+  summarise(
+    mean_shap = mean(shap_importance),
+    sd_shap   = sd(shap_importance),
+    .groups = "drop"
+  ) %>%
+  arrange(dataset, desc(mean_shap))
+
 print(summary_stats)
-print(importance_df)
-print(importance_summary)
+print(head(shap_summary)) # Just printing the top features to keep console clean
 
 timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
-write.csv(results_df,
-          paste0("model_results/rf_seed_results_", timestamp, ".csv"),
-          row.names = FALSE)
-write.csv(summary_stats,
-          paste0("model_results/rf_summary_stats_", timestamp, ".csv"),
-          row.names = FALSE)
-write.csv(importance_df,
-          paste0("model_results/rf_feature_importance_", timestamp, ".csv"),
-          row.names = FALSE)
-write.csv(importance_summary,
-          paste0("model_results/rf_feature_importance_summary_", timestamp, ".csv"),
-          row.names = FALSE)
+write.csv(results_df, paste0("model_results/rf_seed_results_", timestamp, ".csv"), row.names = FALSE)
+write.csv(summary_stats, paste0("model_results/rf_summary_stats_", timestamp, ".csv"), row.names = FALSE)
+write.csv(importance_df, paste0("model_results/rf_feature_importance_", timestamp, ".csv"), row.names = FALSE)
+write.csv(importance_summary, paste0("model_results/rf_feature_importance_summary_", timestamp, ".csv"), row.names = FALSE)
+write.csv(shap_df, paste0("model_results/rf_shap_importance_", timestamp, ".csv"), row.names = FALSE)
+write.csv(shap_summary, paste0("model_results/rf_shap_importance_summary_", timestamp, ".csv"), row.names = FALSE)
