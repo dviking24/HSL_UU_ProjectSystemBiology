@@ -98,7 +98,7 @@ split_endos <- function(endos) {
   )
 }
 
-sample_entities <- function(embryos, endos, train_n = 5, test_n = 4, seed = 64) {
+sample_entities <- function(embryos, endos, train_n = 6, test_n = 3, seed = 64) {
   set.seed(seed)
   emb <- split_embryos(embryos)
   end <- split_endos(endos)
@@ -147,7 +147,7 @@ build_split <- function(df, split_info) {
 
 
 # ===== TRAINING, TESTING AND EVALUATING RANDOM FOREST MODELS =====
-run_rf_experiment <- function(df, seed, dataset_name) {
+run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) { 
   
   set.seed(seed)
   
@@ -157,6 +157,8 @@ run_rf_experiment <- function(df, seed, dataset_name) {
   split_info <- sample_entities(
     entities$embryos,
     entities$endos,
+    train_n = train_n, # Pass it to the sampler
+    test_n = test_n,   # Pass it to the sampler
     seed = seed
   )
   
@@ -251,9 +253,14 @@ seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-results <- lapply(seeds, function(s) {
-  vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo")
-  vitro_res <- run_rf_experiment(vitro_matrix, s, "vitro")
+job_name <- "jobname_"
+results <- lapply(seeds, function(s) { # 'seeds' or 'random_seeds'
+  
+  # Run vivo with a 7/4 split
+  vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo", train_n = 7, test_n = 4)
+  
+  # Run vitro with a 5/4 split
+  vitro_res <- run_rf_experiment(vitro_matrix, s, "vitro", train_n = 5, test_n = 4)
   
   list(
     metrics = rbind(vivo_res$metrics, vitro_res$metrics),
@@ -301,9 +308,9 @@ print(summary_stats)
 print(head(shap_summary)) # Just printing the top features to keep console clean
 
 timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
-write.csv(results_df, paste0("model_results/rf_seed_results_", timestamp, ".csv"), row.names = FALSE)
-write.csv(summary_stats, paste0("model_results/rf_summary_stats_", timestamp, ".csv"), row.names = FALSE)
-write.csv(importance_df, paste0("model_results/rf_feature_importance_", timestamp, ".csv"), row.names = FALSE)
-write.csv(importance_summary, paste0("model_results/rf_feature_importance_summary_", timestamp, ".csv"), row.names = FALSE)
-write.csv(shap_df, paste0("model_results/rf_shap_importance_", timestamp, ".csv"), row.names = FALSE)
-write.csv(shap_summary, paste0("model_results/rf_shap_importance_summary_", timestamp, ".csv"), row.names = FALSE)
+write.csv(results_df, paste0("model_results/", job_name, "rf_seed_results_", timestamp, ".csv"), row.names = FALSE)
+write.csv(summary_stats, paste0("model_results/", job_name, "rf_summary_stats_", timestamp, ".csv"), row.names = FALSE)
+write.csv(importance_df, paste0("model_results/", job_name, "rf_feature_importance_", timestamp, ".csv"), row.names = FALSE)
+write.csv(importance_summary, paste0("model_results/", job_name, "rf_feature_importance_summary_", timestamp, ".csv"), row.names = FALSE)
+write.csv(shap_df, paste0("model_results/", job_name, "rf_shap_importance_", timestamp, ".csv"), row.names = FALSE)
+write.csv(shap_summary, paste0("model_results/", job_name, "rf_shap_importance_summary_", timestamp, ".csv"), row.names = FALSE)
