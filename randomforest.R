@@ -3,6 +3,7 @@
 #install.packages("ranger")
 library(caret)
 library(ranger)
+library(dplyr)
 
 
 
@@ -169,65 +170,82 @@ build_split <- function(df, split_info) {
 }
 
 
-# ----- vivo train/test split -----
-vivo_entities  <- extract_entities(vivo_matrix)
-
-vivo_split_info <- sample_entities(
-  vivo_entities$embryos,
-  vivo_entities$endos,
-  seed = 64
-)
-
-vivo_sets <- build_split(
-  vivo_matrix,
-  vivo_split_info
-)
-
-vivo_train <- vivo_sets$train
-vivo_test  <- vivo_sets$test
-
-# ----- vitro train/test split -----
-vitro_entities <- extract_entities(vitro_matrix)
-
-vitro_split_info <- sample_entities(
-  vitro_entities$embryos,
-  vitro_entities$endos,
-  seed = 64
-)
-
-vitro_sets <- build_split(
-  vitro_matrix,
-  vitro_split_info
-)
-
-vitro_train <- vitro_sets$train
-vitro_test  <- vitro_sets$test
-
-
 
 # ===== TRAINING, TESTING AND EVALUATING RANDOM FOREST MODELS =====
-# ----- vivo random forest -----
-#model_rf_vivo <- train(PregnancyStatus ~ ., data = vivo_training_set, method = "ranger", importance = "impurity")
-#saveRDS(model_rf_vivo, "models/rf_model_vivo.rds") # save the trained model as .rds
-model_rf_vivo <- readRDS(file = "models/rf_model_vivo.rds") # load trained vivo rf-model from RDS-file instead of training manually
+run_rf_experiment <- function(df, seed, dataset_name) {
+  
+  set.seed(seed)
+  
+  # ---- split ----
+  entities <- extract_entities(df)
+  
+  split_info <- sample_entities(
+    entities$embryos,
+    entities$endos,
+    seed = seed
+  )
+  
+  splits <- build_split(df, split_info)
+  
+  train_df <- splits$train
+  test_df  <- splits$test
+  
+  # ---- model ----
+  model <- train(
+    PregnancyStatus ~ .,
+    data = train_df,
+    method = "ranger",
+    importance = "impurity"
+  )
+  
+  # ---- predictions ----
+  preds <- predict(model, test_df)
+  
+  cm <- confusionMatrix(preds, test_df$PregnancyStatus)
+  
+  # ---- results ----
+  data.frame(
+    dataset = dataset_name,
+    seed = seed,
+    accuracy = cm$overall["Accuracy"],
+    kappa = cm$overall["Kappa"]
+  )
+}
 
-predict_rf_vivo <- predict(model_rf_vivo, vivo_test_set) # predicting the vivo test-set using Random Forest model
 
-cm_rf_vivo <- confusionMatrix(predict_rf_vivo, vivo_test_set$PregnancyStatus) # evaluate performance using a confusion matrix
-print(cm_rf_vivo)
+# ===== RUN PIPELINE =====
+seeds <- c(64,28,21,94,41,12,53,22,17,62)
+random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from range 1-1000
 
-print(varImp(model_rf_vivo)) # display feature importance
+# train, run and evaluate models on given vector of seeds
+results <- lapply(random_seeds, function(s) {
+  rbind(
+    run_rf_experiment(vivo_matrix, s, "vivo"),
+    run_rf_experiment(vitro_matrix, s, "vitro")
+  )
+})
 
-# ----- vitro random forest -----
-#model_rf_vitro <- train(PregnancyStatus ~ ., data = vitro_training_set, method = "ranger", importance = "impurity")
-#saveRDS(model_rf_vitro, "models/rf_model_vitro.rds")
-model_rf_vitro <- readRDS(file = "models/rf_model_vitro.rds")
-
-predict_rf_vitro <- predict(model_rf_vitro, vitro_test_set)
-
-cm_rf_vitro <- confusionMatrix(predict_rf_vitro, vitro_test_set$PregnancyStatus)
-print(cm_rf_vitro)
-
-print(varImp(model_rf_vitro))
+results_df <- do.call(rbind, results)
 
 
+
+# ===== MAKE SUMMARY & SAVE RESULTS TO FILES  =====
+aggregate(accuracy ~ dataset, data = results_df, mean)
+aggregate(kappa ~ dataset, data = results_df, mean)
+
+summary_stats <- results_df %>%
+  group_by(dataset) %>%
+  summarise(
+    mean_accuracy = mean(accuracy),
+    sd_accuracy   = sd(accuracy),
+    mean_kappa    = mean(kappa),
+    sd_kappa      = sd(kappa)
+  )
+
+print(results_df)
+print(summary_stats)
+
+filename_seed_results = paste0("model_results/rf_seed_results_", format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss"), ".csv")
+filename_summary_stats = paste0("model_results/rf_summary_stats_", format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss"), ".csv")
+write.table(results_df, filename_seed_results, append = FALSE, sep = ",", dec = ".", row.names = FALSE, col.names = TRUE)
+write.table(summary_stats, filename_summary_stats, append = FALSE, sep = ",", dec = ".", row.names = FALSE, col.names = TRUE)
