@@ -7,6 +7,7 @@ library(caret)
 library(ranger)
 library(dplyr)
 library(treeshap)
+library(pROC)
 
 
 
@@ -194,6 +195,13 @@ run_rf_experiment <- function(df, seed, dataset_name) {
   
   cm <- confusionMatrix(preds_factor, y_test_factor)
   
+  # ---- ROC and AUC ANALYSIS ----
+  # Calculate the ROC curve by comparing the true labels to the predicted probabilities
+  roc_obj <- roc(response = y_test_factor, predictor = preds_prob, quiet = TRUE)
+  
+  # Extract the Area Under the Curve (AUC)
+  auc_value <- as.numeric(auc(roc_obj))
+  
   # ---- base feature importance ----
   vi <- varImp(model)$importance
   vi_df <- data.frame(
@@ -225,7 +233,8 @@ run_rf_experiment <- function(df, seed, dataset_name) {
     dataset = dataset_name,
     seed = seed,
     accuracy = cm$overall["Accuracy"],
-    kappa = cm$overall["Kappa"]
+    kappa = cm$overall["Kappa"],
+    auc = auc_value
   )
   
   list(
@@ -265,7 +274,9 @@ summary_stats <- results_df %>%
     mean_accuracy = mean(accuracy),
     sd_accuracy   = sd(accuracy),
     mean_kappa    = mean(kappa),
-    sd_kappa      = sd(kappa)
+    sd_kappa      = sd(kappa),
+    mean_auc    = mean(auc),
+    sd_auc      = sd(auc)
   )
 
 importance_summary <- importance_df %>%
