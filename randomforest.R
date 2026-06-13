@@ -200,15 +200,28 @@ run_rf_experiment <- function(df, seed, dataset_name) {
   
   # ---- predictions ----
   preds <- predict(model, test_df)
-  
   cm <- confusionMatrix(preds, test_df$PregnancyStatus)
   
+  # ---- feature importance ----
+  vi <- varImp(model)$importance
+  vi_df <- data.frame(
+    feature = rownames(vi),
+    importance = vi[,1],
+    dataset = dataset_name,
+    seed = seed
+  )
+  
   # ---- results ----
-  data.frame(
+  metrics <- data.frame(
     dataset = dataset_name,
     seed = seed,
     accuracy = cm$overall["Accuracy"],
     kappa = cm$overall["Kappa"]
+  )
+  
+  list(
+    metrics = metrics,
+    importance = vi_df
   )
 }
 
@@ -218,18 +231,22 @@ seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-results <- lapply(random_seeds, function(s) {
-  rbind(
-    run_rf_experiment(vivo_matrix, s, "vivo"),
-    run_rf_experiment(vitro_matrix, s, "vitro")
+results <- lapply(seeds, function(s) {
+  
+  vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo")
+  vitro_res <- run_rf_experiment(vitro_matrix, s, "vitro")
+  
+  list(
+    metrics = rbind(vivo_res$metrics, vitro_res$metrics),
+    importance = rbind(vivo_res$importance, vitro_res$importance)
   )
 })
 
-results_df <- do.call(rbind, results)
+# combine results
+results_df <- do.call(rbind, lapply(results, `[[`, "metrics"))
+importance_df <- do.call(rbind, lapply(results, `[[`, "importance"))
 
-
-
-# ===== MAKE SUMMARY & SAVE RESULTS TO FILES  =====
+# make summary & save results to file
 aggregate(accuracy ~ dataset, data = results_df, mean)
 aggregate(kappa ~ dataset, data = results_df, mean)
 
@@ -242,10 +259,30 @@ summary_stats <- results_df %>%
     sd_kappa      = sd(kappa)
   )
 
+importance_summary <- importance_df %>%
+  group_by(dataset, feature) %>%
+  summarise(
+    mean_importance = mean(importance),
+    sd_importance   = sd(importance),
+    .groups = "drop"
+  ) %>%
+  arrange(dataset, desc(mean_importance))
+
 print(results_df)
 print(summary_stats)
+print(importance_df)
+print(importance_summary)
 
-filename_seed_results = paste0("model_results/rf_seed_results_", format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss"), ".csv")
-filename_summary_stats = paste0("model_results/rf_summary_stats_", format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss"), ".csv")
-write.table(results_df, filename_seed_results, append = FALSE, sep = ",", dec = ".", row.names = FALSE, col.names = TRUE)
-write.table(summary_stats, filename_summary_stats, append = FALSE, sep = ",", dec = ".", row.names = FALSE, col.names = TRUE)
+timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
+write.csv(results_df,
+          paste0("model_results/rf_seed_results_", timestamp, ".csv"),
+          row.names = FALSE)
+write.csv(summary_stats,
+          paste0("model_results/rf_summary_stats_", timestamp, ".csv"),
+          row.names = FALSE)
+write.csv(importance_df,
+          paste0("model_results/rf_feature_importance_", timestamp, ".csv"),
+          row.names = FALSE)
+write.csv(importance_summary,
+          paste0("model_results/rf_feature_importance_summary_", timestamp, ".csv"),
+          row.names = FALSE)
