@@ -314,7 +314,7 @@ set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 20 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-job_name <- paste0("10setseeds_", selected_variation, "_") # begin all the names of the result-files with a set jobname
+job_name <- paste0("test", selected_variation, "_") # begin all the names of the result-files with a set jobname
 results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
   
   # Run vivo with a 7/4 split
@@ -335,7 +335,7 @@ results_df <- do.call(rbind, lapply(results, `[[`, "metrics"))
 importance_df <- do.call(rbind, lapply(results, `[[`, "importance"))
 shap_df <- do.call(rbind, lapply(results, `[[`, "shap_importance"))
 
-# make summary & save results to files
+# make summary
 summary_stats <- results_df %>%
   group_by(dataset) %>%
   summarise(
@@ -368,13 +368,24 @@ shap_summary <- shap_df %>%
 print(summary_stats)
 print(head(shap_summary)) # Just printing the top features to keep console clean
 
-# Added `dir.create` to prevent crashes if the output folder doesn't exist yet
-if(!dir.exists("model_results")) dir.create("model_results") 
-
+# save results & organize folders
 timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
-write.csv(results_df, paste0("model_results/", job_name, "rf_seed_results_", timestamp, ".csv"), row.names = FALSE)
-write.csv(summary_stats, paste0("model_results/", job_name, "rf_summary_stats_", timestamp, ".csv"), row.names = FALSE)
-write.csv(importance_df, paste0("model_results/", job_name, "rf_feature_importance_", timestamp, ".csv"), row.names = FALSE)
-write.csv(importance_summary, paste0("model_results/", job_name, "rf_feature_importance_summary_", timestamp, ".csv"), row.names = FALSE)
-write.csv(shap_df, paste0("model_results/", job_name, "rf_shap_importance_", timestamp, ".csv"), row.names = FALSE)
-write.csv(shap_summary, paste0("model_results/", job_name, "rf_shap_importance_summary_", timestamp, ".csv"), row.names = FALSE)
+
+# Clean up the job_name slightly to remove trailing underscores for the folder name
+clean_job_name <- sub("_+$", "", job_name)
+job_dir <- file.path("model_results", paste0(clean_job_name, "_", timestamp))
+
+# Ensure the new job-specific directory exists (recursive = TRUE creates the parent folder if needed)
+if(!dir.exists(job_dir)) {
+  dir.create(job_dir, recursive = TRUE)
+}
+
+# Save all files directly into the new job folder
+write.csv(results_df, file.path(job_dir, paste0(job_name, "rf_seed_results_", timestamp, ".csv")), row.names = FALSE)
+write.csv(summary_stats, file.path(job_dir, paste0(job_name, "rf_summary_stats_", timestamp, ".csv")), row.names = FALSE)
+write.csv(importance_df, file.path(job_dir, paste0(job_name, "rf_feature_importance_", timestamp, ".csv")), row.names = FALSE)
+write.csv(importance_summary, file.path(job_dir, paste0(job_name, "rf_feature_importance_summary_", timestamp, ".csv")), row.names = FALSE)
+write.csv(shap_df, file.path(job_dir, paste0(job_name, "rf_shap_importance_", timestamp, ".csv")), row.names = FALSE)
+write.csv(shap_summary, file.path(job_dir, paste0(job_name, "rf_shap_importance_summary_", timestamp, ".csv")), row.names = FALSE)
+
+message("All results successfully saved and organized in: ", job_dir)
