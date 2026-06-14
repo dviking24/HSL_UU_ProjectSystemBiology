@@ -83,7 +83,7 @@ process_and_save_matrices(vitro_raw, "vitro")
 # =========================================================================
 
 # Select which variation you want to load: "both", "emb2endo", or "endo2emb"
-selected_variation <- "emb2endo" # Change this string to load different datasets
+selected_variation <- "both" # Change this string to load different datasets
 
 vivo_matrix <- read.table(paste0("matrices/vivo_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
 vitro_matrix <- read.table(paste0("matrices/vitro_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
@@ -261,10 +261,10 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
 
 # ===== RUN PIPELINE =====
 set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
-random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from range 1-1000
+random_seeds <- sample.int(1000, 10) # generate vector with 20 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-job_name <- paste0("jobname_", selected_variation, "_") # begin all the names of the result-files with a set jobname
+job_name <- paste0("10setseeds_", selected_variation, "_") # begin all the names of the result-files with a set jobname
 results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
   
   # Run vivo with a 7/4 split
