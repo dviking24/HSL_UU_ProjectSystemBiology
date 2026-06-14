@@ -83,8 +83,14 @@ process_and_save_matrices(vitro_raw, "vitro")
 # =========================================================================
 
 # Select which variation you want to load: "both", "emb2endo", or "endo2emb"
-selected_variation <- "both" # Change this string to load different datasets
+selected_variation <- "emb2endo" # Change this string to load different datasets
 
+# OPTIONAL: Provide the path to your generated consensus feature list to subset the data.
+# If you want to run on ALL features, set this to NULL.
+feature_list_path <- "feature_lists/consensus_top_20_features_2026-06-14_12h08m02s.csv" 
+# feature_list_path <- NULL
+
+# ----- LOAD DATA -----
 vivo_matrix <- read.table(paste0("matrices/vivo_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
 vitro_matrix <- read.table(paste0("matrices/vitro_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
 
@@ -92,6 +98,35 @@ vitro_matrix <- read.table(paste0("matrices/vitro_matrix_", selected_variation, 
 vivo_matrix$PregnancyStatus <- factor(vivo_matrix$PregnancyStatus)
 vitro_matrix$PregnancyStatus <- factor(vitro_matrix$PregnancyStatus)
 
+# ----- DYNAMIC FEATURE SUBSETTING -----
+if (!is.null(feature_list_path) && file.exists(feature_list_path)) {
+  message("Loading feature subset from: ", feature_list_path)
+  consensus_features <- read.csv(feature_list_path, stringsAsFactors = FALSE)
+  
+  # Filter vivo matrix
+  vivo_feats <- consensus_features$feature[consensus_features$dataset == "vivo"]
+  if (length(vivo_feats) > 0) {
+    # intersect() ensures we don't crash if a feature name slightly mismatches
+    vivo_keep <- intersect(c("PregnancyStatus", vivo_feats), colnames(vivo_matrix))
+    vivo_matrix <- vivo_matrix[, vivo_keep, drop = FALSE]
+    message("Trimmed vivo_matrix to ", length(vivo_keep) - 1, " features.")
+  }
+  
+  # Filter vitro matrix
+  vitro_feats <- consensus_features$feature[consensus_features$dataset == "vitro"]
+  if (length(vitro_feats) > 0) {
+    vitro_keep <- intersect(c("PregnancyStatus", vitro_feats), colnames(vitro_matrix))
+    vitro_matrix <- vitro_matrix[, vitro_keep, drop = FALSE]
+    message("Trimmed vitro_matrix to ", length(vitro_keep) - 1, " features.")
+  }
+  
+  # Tag the output files so you know this was a subset run
+  job_name <- paste0("jobname_", selected_variation, "_subset_")
+  
+} else {
+  message("No feature subset provided or file not found. Running on ALL features.")
+  job_name <- paste0("jobname_", selected_variation, "_all_")
+}
 
 # ===== TRAIN-TEST SPLIT =====
 extract_entities <- function(df) {
@@ -264,7 +299,7 @@ set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 20 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-job_name <- paste0("10setseeds_", selected_variation, "_") # begin all the names of the result-files with a set jobname
+job_name <- paste0("10setseeds_SELECTEDFEATURES__", selected_variation, "_") # begin all the names of the result-files with a set jobname
 results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
   
   # Run vivo with a 7/4 split
