@@ -11,18 +11,18 @@ library(pROC)
 # ===== 2. USER CONFIGURATION BLOCK =====
 # =========================================================================
 # Matrix directional type to load. Options: "both", "emb2endo", "endo2emb"
-SELECTED_VARIATION <- "emb2endo" 
+SELECTED_VARIATION <- "both" 
 
 # Path to consensus feature list (.csv) to apply feature selection/trimming.
 # Set this to NULL if you want to run the model on ALL features.
 # FEATURE_LIST_PATH  <- NULL 
-FEATURE_LIST_PATH <- "feature_lists/consensus_top_20_features_emb2endo_2026-06-14_12h08m02s.csv"
+FEATURE_LIST_PATH <- "feature_lists/top_20_shap_features.csv"
 
 # Output naming management
-BASE_JOB_NAME      <- "jobname"
+BASE_JOB_NAME      <- "both_Top20SHAP_Only"
 
 # OPTIONAL: Save trained caret/ranger models to .rds files for future testing?
-SAVE_MODELS        <- FALSE  # Set to FALSE to skip saving model objects
+SAVE_MODELS        <- TRUE  # Set to FALSE to skip saving model objects
 
 # Reproducibility settings
 # Set to either the vector with the given seeds, or generate vector with 10 random seeds from range 1-1000
