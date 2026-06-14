@@ -83,7 +83,7 @@ process_and_save_matrices(vitro_raw, "vitro")
 # =========================================================================
 
 # Select which variation you want to load: "both", "emb2endo", or "endo2emb"
-selected_variation <- "endo2emb" # Change this string to load different datasets
+selected_variation <- "both" # Change this string to load different datasets
 
 # OPTIONAL: Provide the path to your generated consensus feature list to subset the data.
 # If you want to run on ALL features, set this to NULL.
