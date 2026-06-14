@@ -1,9 +1,6 @@
-# ===== IMPORTS =====
-#install.packages("caret")
-#install.packages("ranger")
-#install.packages("dplyr")
-#install.packages("treeshap")
-#install.packages("pROC")
+# =========================================================================
+# ===== 1. IMPORTS =====
+# =========================================================================
 library(caret)
 library(ranger)
 library(dplyr)
@@ -11,76 +8,102 @@ library(treeshap)
 library(pROC)
 
 # =========================================================================
-# PHASE 2: LOAD READY DATASETS & MODELING PIPELINE
-# Load whichever variation you want to test and run the experiments.
+# ===== 2. USER CONFIGURATION BLOCK =====
+# =========================================================================
+# Matrix directional type to load. Options: "both", "emb2endo", "endo2emb"
+SELECTED_VARIATION <- "emb2endo" 
+
+# Path to consensus feature list (.csv) to apply feature selection/trimming.
+# Set this to NULL if you want to run the model on ALL features.
+# FEATURE_LIST_PATH  <- NULL 
+FEATURE_LIST_PATH <- "feature_lists/consensus_top_20_features_emb2endo_2026-06-14_12h08m02s.csv"
+
+# Output naming management
+BASE_JOB_NAME      <- "jobname"
+
+# OPTIONAL: Save trained caret/ranger models to .rds files for future testing?
+SAVE_MODELS        <- FALSE  # Set to FALSE to skip saving model objects
+
+# Reproducibility settings
+# Set to either the vector with the given seeds, or generate vector with 10 random seeds from range 1-1000
+SEEDS_TO_RUN       <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62)
+# SEEDS_TO_RUN       <- sample.int(1000, 10)
+
+# Experimental train/test sample configurations
+VIVO_TRAIN_N       <- 7
+VIVO_TEST_N        <- 4
+
+VITRO_TRAIN_N      <- 5
+VITRO_TEST_N       <- 4
+
+
+# =========================================================================
+# ===== 3. DATA LOADING & PREPROCESSING FUNCTIONS =====
 # =========================================================================
 
-# Select which variation you want to load: "both", "emb2endo", or "endo2emb"
-selected_variation <- "both" # Change this string to load different datasets
-
-# OPTIONAL: Provide the path to your generated consensus feature list to subset the data.
-# If you want to run on ALL features, set this to NULL.
-#feature_list_path <- "feature_lists/consensus_top_20_features_2026-06-14_12h08m02s.csv" 
-feature_list_path <- NULL
-
-# ----- LOAD DATA -----
-vivo_matrix <- read.table(paste0("matrices/vivo_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
-vitro_matrix <- read.table(paste0("matrices/vitro_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
-
-# Ensure PregnancyStatus is a factor after loading
-vivo_matrix$PregnancyStatus <- factor(vivo_matrix$PregnancyStatus)
-vitro_matrix$PregnancyStatus <- factor(vitro_matrix$PregnancyStatus)
-
-# ----- DYNAMIC FEATURE SUBSETTING -----
-if (!is.null(feature_list_path) && file.exists(feature_list_path)) {
-  message("Loading feature subset from: ", feature_list_path)
-  consensus_features <- read.csv(feature_list_path, stringsAsFactors = FALSE)
+#' Load Matrices and Enforce Factor Formatting
+load_target_matrices <- function(variation) {
+  vivo_path  <- file.path("matrices", paste0("vivo_matrix_", variation, ".tsv"))
+  vitro_path <- file.path("matrices", paste0("vitro_matrix_", variation, ".tsv"))
   
-  # Filter vivo matrix
-  vivo_feats <- consensus_features$feature[consensus_features$dataset == "vivo"]
-  if (length(vivo_feats) > 0) {
-    # intersect() ensures we don't crash if a feature name slightly mismatches
-    vivo_keep <- intersect(c("PregnancyStatus", vivo_feats), colnames(vivo_matrix))
-    vivo_matrix <- vivo_matrix[, vivo_keep, drop = FALSE]
-    message("Trimmed vivo_matrix to ", length(vivo_keep) - 1, " features.")
+  if (!file.exists(vivo_path) || !file.exists(vitro_path)) {
+    stop("Target data matrices not found for variation: ", variation)
   }
   
-  # Filter vitro matrix
-  vitro_feats <- consensus_features$feature[consensus_features$dataset == "vitro"]
-  if (length(vitro_feats) > 0) {
-    vitro_keep <- intersect(c("PregnancyStatus", vitro_feats), colnames(vitro_matrix))
-    vitro_matrix <- vitro_matrix[, vitro_keep, drop = FALSE]
-    message("Trimmed vitro_matrix to ", length(vitro_keep) - 1, " features.")
-  }
+  vivo  <- read.table(vivo_path, header = TRUE, sep = "\t", row.names = 1)
+  vitro <- read.table(vitro_path, header = TRUE, sep = "\t", row.names = 1)
   
-  # Tag the output files so you know this was a subset run
-  job_name <- paste0("jobname_", selected_variation, "_subset_")
+  vivo$PregnancyStatus  <- factor(vivo$PregnancyStatus)
+  vitro$PregnancyStatus <- factor(vitro$PregnancyStatus)
   
-} else {
-  message("No feature subset provided or file not found. Running on ALL features.")
-  job_name <- paste0("jobname_", selected_variation, "_all_")
+  list(vivo = vivo, vitro = vitro)
 }
 
-# ===== TRAIN-TEST SPLIT (UPDATED) =====
+#' Apply Dynamic Feature Filtering From Consensus Lists
+apply_feature_selection <- function(matrices, feature_list_path) {
+  if (is.null(feature_list_path) || !file.exists(feature_list_path)) {
+    message("--> No valid feature subset provided. Running on ALL features.")
+    return(list(matrices = matrices, mode_tag = "_all_"))
+  }
+  
+  message("--> Loading consensus feature selection file from: ", feature_list_path)
+  consensus_features <- read.csv(feature_list_path, stringsAsFactors = FALSE)
+  
+  # Trim Vivo Matrix
+  vivo_feats <- consensus_features$feature[consensus_features$dataset == "vivo"]
+  if (length(vivo_feats) > 0) {
+    vivo_keep <- intersect(c("PregnancyStatus", vivo_feats), colnames(matrices$vivo))
+    matrices$vivo <- matrices$vivo[, vivo_keep, drop = FALSE]
+    message("    Trimmed vivo_matrix down to ", length(vivo_keep) - 1, " features.")
+  }
+  
+  # Trim Vitro Matrix
+  vitro_feats <- consensus_features$feature[consensus_features$dataset == "vitro"]
+  if (length(vitro_feats) > 0) {
+    vitro_keep <- intersect(c("PregnancyStatus", vitro_feats), colnames(matrices$vitro))
+    matrices$vitro <- matrices$vitro[, vitro_keep, drop = FALSE]
+    message("    Trimmed vitro_matrix down to ", length(vitro_keep) - 1, " features.")
+  }
+  
+  return(list(matrices = matrices, mode_tag = "_subset_"))
+}
 
+
+# =========================================================================
+# ===== 4. SAMPLE-ORDER AGNOSTIC SPLITTING ENGINE =====
+# =========================================================================
+
+#' Parse Entity Types Uniformly from Rownames Regardless of Pipe Sequence Order
 extract_entities <- function(df) {
   rn <- rownames(df)
   parts <- strsplit(rn, "\\|")
-  
-  # Flatten out all sample names from both sides
   all_samples <- unique(unlist(parts))
   
-  # Dynamically assign based on your naming conventions
-  # Embryos start with Zo_ or SW_
   embryos <- all_samples[grepl("^(Zo|SW)_", all_samples)]
-  
-  # Endometrium starts with NP_ or PR_
-  endos <- all_samples[grepl("^(NP|PR)_", all_samples)]
+  endos   <- all_samples[grepl("^(NP|PR)_", all_samples)]
   
   list(embryos = embryos, endos = endos)
 }
-
-# (Keep split_embryos, split_endos, and sample_entities exactly the same)
 
 split_embryos <- function(embryos) {
   list(
@@ -96,7 +119,8 @@ split_endos <- function(endos) {
   )
 }
 
-sample_entities <- function(embryos, endos, train_n = 6, test_n = 3, seed = 64) {
+#' Draw Uniform Resamples Without Category Clashes
+sample_entities <- function(embryos, endos, train_n, test_n, seed) {
   set.seed(seed)
   emb <- split_embryos(embryos)
   end <- split_endos(endos)
@@ -104,34 +128,28 @@ sample_entities <- function(embryos, endos, train_n = 6, test_n = 3, seed = 64) 
   train_emb_PR <- sample(emb$PR, train_n)
   train_emb_NP <- sample(emb$NP, train_n)
   
-  remaining_emb_PR <- setdiff(emb$PR, train_emb_PR)
-  remaining_emb_NP <- setdiff(emb$NP, train_emb_NP)
-  
-  test_emb_PR <- sample(remaining_emb_PR, test_n)
-  test_emb_NP <- sample(remaining_emb_NP, test_n)
+  test_emb_PR <- sample(setdiff(emb$PR, train_emb_PR), test_n)
+  test_emb_NP <- sample(setdiff(emb$NP, train_emb_NP), test_n)
   
   train_end_PR <- sample(end$PR, train_n)
   train_end_NP <- sample(end$NP, train_n)
   
-  remaining_end_PR <- setdiff(end$PR, train_end_PR)
-  remaining_end_NP <- setdiff(end$NP, train_end_NP)
-  
-  test_end_PR <- sample(remaining_end_PR, test_n)
-  test_end_NP <- sample(remaining_end_NP, test_n)
+  test_end_PR <- sample(setdiff(end$PR, train_end_PR), test_n)
+  test_end_NP <- sample(setdiff(end$NP, train_end_NP), test_n)
   
   list(
     train_embryos = c(train_emb_PR, train_emb_NP),
     test_embryos  = c(test_emb_PR, test_emb_NP),
-    train_endos = c(train_end_PR, train_end_NP),
-    test_endos  = c(test_end_PR, test_end_NP)
+    train_endos   = c(train_end_PR, train_end_NP),
+    test_endos    = c(test_end_PR, test_end_NP)
   )
 }
 
+#' Assign Sample Pairs to Partitions Based on Complete Biological Matches
 build_split <- function(df, split_info) {
   rn <- rownames(df)
   parts <- strsplit(rn, "\\|")
   
-  # A row belongs in the train set if its parts contain a valid train embryo AND a valid train endo
   train_idx <- sapply(parts, function(p) {
     any(p %in% split_info$train_embryos) & any(p %in% split_info$train_endos)
   })
@@ -147,178 +165,170 @@ build_split <- function(df, split_info) {
 }
 
 
-# ===== TRAINING, TESTING AND EVALUATING RANDOM FOREST MODELS =====
+# =========================================================================
+# ===== 5. CORE MODELING AND EVALUATING EXECUTIVE =====
+# =========================================================================
+
+#' Run Training, Predictions, ROC Analysis, and SHAP Unification For an Experiment
 run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) { 
-  
   set.seed(seed)
   
-  # ---- split ----
-  entities <- extract_entities(df)
+  # ---- Data Partitioning ----
+  entities   <- extract_entities(df)
+  split_info <- sample_entities(entities$embryos, entities$endos, train_n, test_n, seed)
+  splits     <- build_split(df, split_info)
   
-  split_info <- sample_entities(
-    entities$embryos,
-    entities$endos,
-    train_n = train_n, 
-    test_n = test_n,   
-    seed = seed
-  )
+  train_df   <- splits$train
+  test_df    <- splits$test
   
-  splits <- build_split(df, split_info)
-  
-  train_df <- splits$train
-  test_df  <- splits$test
-  
-  # ---- PREPARE DATA FOR TREESHAP (The 0/1 Trick) ----
-  x_train <- train_df[, names(train_df) != "PregnancyStatus", drop = FALSE]
-  
-  # Convert Target to Numeric: NOT_PREGNANT = 0, PREGNANT = 1
+  # ---- Feature Matrix Formatting (The 0/1 SHAP Conversion Trick) ----
+  x_train     <- train_df[, names(train_df) != "PregnancyStatus", drop = FALSE]
   y_train_num <- ifelse(train_df$PregnancyStatus == "PREGNANT", 1, 0)
   
-  x_test  <- test_df[, names(test_df) != "PregnancyStatus", drop = FALSE]
-  
-  # Keep original factor for the Confusion Matrix
+  x_test        <- test_df[, names(test_df) != "PregnancyStatus", drop = FALSE]
   y_test_factor <- test_df$PregnancyStatus 
   
-  # ---- model ----
-  model <- train(
-    x = x_train,
-    y = y_train_num,      # Train on numeric 0 and 1
-    method = "ranger",
-    importance = "impurity"
+  # ---- Model Training (Muting the expected 0/1 caret regression warning) ----
+  model <- suppressWarnings(
+    train(
+      x = x_train, y = y_train_num,
+      method = "ranger",
+      importance = "impurity"
+    )
   )
   
-  # ---- predictions ----
-  preds_prob <- predict(model, x_test)
-  
-  # Threshold at 0.5 to convert the probability back to class labels
-  preds_class <- ifelse(preds_prob > 0.5, "PREGNANT", "NOT_PREGNANT")
+  # ---- Predict Class Probabilities & Evaluate Metrics ----
+  preds_prob   <- predict(model, x_test)
+  preds_class  <- ifelse(preds_prob > 0.5, "PREGNANT", "NOT_PREGNANT")
   preds_factor <- factor(preds_class, levels = levels(y_test_factor))
   
-  cm <- confusionMatrix(preds_factor, y_test_factor)
-  
-  # ---- ROC and AUC ANALYSIS ----
-  roc_obj <- roc(response = y_test_factor, predictor = preds_prob, quiet = TRUE)
+  cm        <- confusionMatrix(preds_factor, y_test_factor)
+  roc_obj   <- roc(response = y_test_factor, predictor = preds_prob, quiet = TRUE)
   auc_value <- as.numeric(auc(roc_obj))
   
-  # ---- base feature importance ----
-  vi <- varImp(model)$importance
+  # ---- Gini / Impurity Feature Importance ----
+  vi    <- varImp(model)$importance
   vi_df <- data.frame(
-    feature = rownames(vi),
-    importance = vi[,1],
-    dataset = dataset_name,
-    seed = seed
+    feature    = rownames(vi),
+    importance = vi[, 1],
+    dataset    = dataset_name,
+    seed       = seed
   )
   
-  # ---- SHAP analysis ----
-  ranger_model <- model$finalModel
-  
-  unified <- treeshap::unify(ranger_model, x_train)
-  shap_res <- treeshap::treeshap(unified, x_test, verbose = FALSE)
-  
-  # Aggregate Global SHAP Importance
+  # ---- Unified SHAP Tree Calculation ----
+  ranger_model  <- model$finalModel
+  unified       <- treeshap::unify(ranger_model, x_train)
+  shap_res      <- treeshap::treeshap(unified, x_test, verbose = FALSE)
   mean_abs_shap <- colMeans(abs(shap_res$shaps))
   
   shap_df <- data.frame(
-    feature = names(mean_abs_shap),
+    feature         = names(mean_abs_shap),
     shap_importance = unname(mean_abs_shap),
-    dataset = dataset_name,
-    seed = seed
+    dataset         = dataset_name,
+    seed            = seed
   )
   
-  # ---- results ----
+  # ---- Return Consolidated Metrics Packaging ----
   metrics <- data.frame(
-    dataset = dataset_name,
-    seed = seed,
+    dataset  = dataset_name,
+    seed     = seed,
     accuracy = cm$overall["Accuracy"],
-    kappa = cm$overall["Kappa"],
-    auc = auc_value
+    kappa    = cm$overall["Kappa"],
+    auc      = auc_value
   )
   
-  list(
-    metrics = metrics,
-    importance = vi_df,
-    shap_importance = shap_df
-  )
+  list(metrics = metrics, importance = vi_df, shap_importance = shap_df, model = model)
 }
 
 
-# ===== RUN PIPELINE =====
-set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
-random_seeds <- sample.int(1000, 10) # generate vector with 20 random seeds from range 1-1000
+# =========================================================================
+# ===== 6. PIPELINE ORCHESTRATION ENGINE =====
+# =========================================================================
 
-# train, run and evaluate models on given vector of seeds
-job_name <- paste0("test", selected_variation, "_") # begin all the names of the result-files with a set jobname
-results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
+execute_pipeline <- function() {
+  message("=== STARTING RANDOM FOREST MODELLING PIPELINE ===")
   
-  # Run vivo with a 7/4 split
-  vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo", train_n = 7, test_n = 4)
+  # 1. Setup Time and Directory Metadata Contexts upfront
+  timestamp     <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
   
-  # Run vitro with a 5/4 split
-  vitro_res <- run_rf_experiment(vitro_matrix, s, "vitro", train_n = 5, test_n = 4)
+  # 2. Load Data
+  matrices <- load_target_matrices(SELECTED_VARIATION)
   
-  list(
-    metrics = rbind(vivo_res$metrics, vitro_res$metrics),
-    importance = rbind(vivo_res$importance, vitro_res$importance),
-    shap_importance = rbind(vivo_res$shap_importance, vitro_res$shap_importance)
-  )
-})
-
-# combine results
-results_df <- do.call(rbind, lapply(results, `[[`, "metrics"))
-importance_df <- do.call(rbind, lapply(results, `[[`, "importance"))
-shap_df <- do.call(rbind, lapply(results, `[[`, "shap_importance"))
-
-# make summary
-summary_stats <- results_df %>%
-  group_by(dataset) %>%
-  summarise(
-    mean_accuracy = mean(accuracy),
-    sd_accuracy   = sd(accuracy),
-    mean_kappa    = mean(kappa),
-    sd_kappa      = sd(kappa),
-    mean_auc      = mean(auc),
-    sd_auc        = sd(auc)
-  )
-
-importance_summary <- importance_df %>%
-  group_by(dataset, feature) %>%
-  summarise(
-    mean_importance = mean(importance),
-    sd_importance   = sd(importance),
-    .groups = "drop"
-  ) %>%
-  arrange(dataset, desc(mean_importance))
-
-shap_summary <- shap_df %>%
-  group_by(dataset, feature) %>%
-  summarise(
-    mean_shap = mean(shap_importance),
-    sd_shap   = sd(shap_importance),
-    .groups = "drop"
-  ) %>%
-  arrange(dataset, desc(mean_shap))
-
-print(summary_stats)
-print(head(shap_summary)) # Just printing the top features to keep console clean
-
-# save results & organize folders
-timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
-
-# Clean up the job_name slightly to remove trailing underscores for the folder name
-clean_job_name <- sub("_+$", "", job_name)
-job_dir <- file.path("model_results", paste0(clean_job_name, "_", timestamp))
-
-# Ensure the new job-specific directory exists (recursive = TRUE creates the parent folder if needed)
-if(!dir.exists(job_dir)) {
-  dir.create(job_dir, recursive = TRUE)
+  # 3. Conditionally Filter Features
+  filtering_results <- apply_feature_selection(matrices, FEATURE_LIST_PATH)
+  matrices <- filtering_results$matrices
+  
+  # 4. Formulate Output String Metadata Tagging
+  job_name      <- paste0(BASE_JOB_NAME, "_", SELECTED_VARIATION, filtering_results$mode_tag)
+  clean_job_dir <- sub("_+$", "", job_name)
+  
+  # 5. Multi-Seed Iterations Processing Lookups
+  message("--> Iterating over experimental seeds...")
+  results <- lapply(SEEDS_TO_RUN, function(s) {
+    vivo_res  <- run_rf_experiment(matrices$vivo, s, "vivo", train_n = VIVO_TRAIN_N, test_n = VIVO_TEST_N)
+    vitro_res <- run_rf_experiment(matrices$vitro, s, "vitro", train_n = VITRO_TRAIN_N, test_n = VITRO_TEST_N)
+    
+    # Optional .rds Model Archiving
+    if (SAVE_MODELS) {
+      model_dir <- file.path("saved_models", paste0(clean_job_dir, "_", timestamp))
+      if(!dir.exists(model_dir)) dir.create(model_dir, recursive = TRUE)
+      
+      saveRDS(vivo_res$model,  file.path(model_dir, paste0(job_name, "vivo_model_seed_",  s, ".rds")))
+      saveRDS(vitro_res$model, file.path(model_dir, paste0(job_name, "vitro_model_seed_", s, ".rds")))
+    }
+    
+    list(
+      metrics         = rbind(vivo_res$metrics, vitro_res$metrics),
+      importance      = rbind(vivo_res$importance, vitro_res$importance),
+      shap_importance = rbind(vivo_res$shap_importance, vitro_res$shap_importance)
+    )
+  })
+  
+  # 6. Collapse Sublists to Clean Matrices
+  results_df    <- do.call(rbind, lapply(results, `[[`, "metrics"))
+  importance_df <- do.call(rbind, lapply(results, `[[`, "importance"))
+  shap_df       <- do.call(rbind, lapply(results, `[[`, "shap_importance"))
+  
+  # 7. Generate Analytical Calculation Summaries
+  summary_stats <- results_df %>%
+    group_by(dataset) %>%
+    summarise(
+      mean_accuracy = mean(accuracy), sd_accuracy = sd(accuracy),
+      mean_kappa    = mean(kappa),    sd_kappa    = sd(kappa),
+      mean_auc      = mean(auc),      sd_auc      = sd(auc)
+    )
+  
+  importance_summary <- importance_df %>%
+    group_by(dataset, feature) %>%
+    summarise(mean_importance = mean(importance), sd_importance = sd(importance), .groups = "drop") %>%
+    arrange(dataset, desc(mean_importance))
+  
+  shap_summary <- shap_df %>%
+    group_by(dataset, feature) %>%
+    summarise(mean_shap = mean(shap_importance), sd_shap = sd(shap_importance), .groups = "drop") %>%
+    arrange(dataset, desc(mean_shap))
+  
+  # 8. Print Console Diagnostics
+  print(summary_stats)
+  print(head(shap_summary))
+  
+  # 9. Export Result Sheets Safely into Managed Folders
+  job_dir <- file.path("model_results", paste0(clean_job_dir, "_", timestamp))
+  if(!dir.exists(job_dir)) dir.create(job_dir, recursive = TRUE)
+  
+  write.csv(results_df,         file.path(job_dir, paste0(job_name, "rf_seed_results_", timestamp, ".csv")), row.names = FALSE)
+  write.csv(summary_stats,       file.path(job_dir, paste0(job_name, "rf_summary_stats_", timestamp, ".csv")), row.names = FALSE)
+  write.csv(importance_df,      file.path(job_dir, paste0(job_name, "rf_feature_importance_", timestamp, ".csv")), row.names = FALSE)
+  write.csv(importance_summary, file.path(job_dir, paste0(job_name, "rf_feature_importance_summary_", timestamp, ".csv")), row.names = FALSE)
+  write.csv(shap_df,            file.path(job_dir, paste0(job_name, "rf_shap_importance_", timestamp, ".csv")), row.names = FALSE)
+  write.csv(shap_summary,       file.path(job_dir, paste0(job_name, "rf_shap_importance_summary_", timestamp, ".csv")), row.names = FALSE)
+  
+  message("--> Pipeline Execution Successful.")
+  message("    Data metrics saved inside: ", job_dir)
+  if (SAVE_MODELS) message("    Trained models saved inside: saved_models/", paste0(clean_job_dir, "_", timestamp))
 }
 
-# Save all files directly into the new job folder
-write.csv(results_df, file.path(job_dir, paste0(job_name, "rf_seed_results_", timestamp, ".csv")), row.names = FALSE)
-write.csv(summary_stats, file.path(job_dir, paste0(job_name, "rf_summary_stats_", timestamp, ".csv")), row.names = FALSE)
-write.csv(importance_df, file.path(job_dir, paste0(job_name, "rf_feature_importance_", timestamp, ".csv")), row.names = FALSE)
-write.csv(importance_summary, file.path(job_dir, paste0(job_name, "rf_feature_importance_summary_", timestamp, ".csv")), row.names = FALSE)
-write.csv(shap_df, file.path(job_dir, paste0(job_name, "rf_shap_importance_", timestamp, ".csv")), row.names = FALSE)
-write.csv(shap_summary, file.path(job_dir, paste0(job_name, "rf_shap_importance_summary_", timestamp, ".csv")), row.names = FALSE)
-
-message("All results successfully saved and organized in: ", job_dir)
+# =========================================================================
+# ===== 7. EXECUTION TRIGGER =====
+# =========================================================================
+execute_pipeline()
