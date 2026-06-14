@@ -3,75 +3,94 @@
 #install.packages("ranger")
 #install.packages("dplyr")
 #install.packages("treeshap")
+#install.packages("pROC")
 library(caret)
 library(ranger)
 library(dplyr)
 library(treeshap)
 library(pROC)
 
+# =========================================================================
+# PHASE 1: DATA PREPARATION & SAVING
+# Run this once to generate the 3 TSV formats. If these already exist, 
+# you can skip directly to PHASE 2 and load the pre-processed datasets.
+# =========================================================================
 
-
-# ===== LOAD DATA =====
-vivo_matrix <- read.csv("matrices/vivo_matrix.tsv", header = TRUE, sep = "\t", row.names = 1)
-vitro_matrix <- read.csv("matrices/vitro_matrix.tsv", header = TRUE, sep = "\t", row.names = 1)
+# ----- 1A. Load Raw Data -----
+vivo_raw <- read.csv("matrices/vivo_matrix.tsv", header = TRUE, sep = "\t", row.names = 1)
+vitro_raw <- read.csv("matrices/vitro_matrix.tsv", header = TRUE, sep = "\t", row.names = 1)
 
 # Replace . with |
-colnames(vivo_matrix)  <- gsub("\\.", "|", colnames(vivo_matrix))
-colnames(vitro_matrix) <- gsub("\\.", "|", colnames(vitro_matrix))
+colnames(vivo_raw)  <- gsub("\\.", "|", colnames(vivo_raw))
+colnames(vitro_raw) <- gsub("\\.", "|", colnames(vitro_raw))
 
-# Function to keep only EMBRYO|ENDOMETRIUM columns
-keep_embryo_to_endo <- function(mat) {
-  cols <- colnames(mat)
-  split_cols <- strsplit(cols, "\\|")
+# ----- 1B. Filtering Helpers -----
+is_embryo <- function(x) grepl("^(Zo|SW)_", x)
+is_endo   <- function(x) grepl("^(NP|PR)_", x)
+
+# Function to filter matrix based on direction
+filter_combinations <- function(mat, direction = c("both", "emb2endo", "endo2emb")) {
+  direction <- match.arg(direction)
+  if (direction == "both") return(mat)
   
+  split_cols <- strsplit(colnames(mat), "\\|")
   left_part  <- sapply(split_cols, `[`, 1)
   right_part <- sapply(split_cols, `[`, 2)
   
-  # embryo identifiers
-  is_embryo_left <- grepl("^(Zo|SW)_", left_part)
+  if (direction == "emb2endo") {
+    keep_idx <- is_embryo(left_part) & is_endo(right_part)
+  } else if (direction == "endo2emb") {
+    keep_idx <- is_endo(left_part) & is_embryo(right_part)
+  }
   
-  # endometrium identifiers
-  is_endo_right <- grepl("^(NP|PR)_", right_part)
-  
-  mat[, is_embryo_left & is_endo_right, drop = FALSE]
+  return(mat[, keep_idx, drop = FALSE])
 }
 
-vivo_matrix_emb2endo  <- keep_embryo_to_endo(vivo_matrix)
-vitro_matrix_emb2endo <- keep_embryo_to_endo(vitro_matrix)
+# ----- 1C. Processing and Saving Function -----
+process_and_save_matrices <- function(raw_mat, prefix) {
+  directions <- c("both", "emb2endo", "endo2emb")
+  
+  for (dir in directions) {
+    # Filter columns
+    filtered_mat <- filter_combinations(raw_mat, direction = dir)
+    
+    # Transpose data.frame
+    df <- as.data.frame(t(filtered_mat))
+    
+    # Add PregnancyStatus
+    df <- cbind(
+      PregnancyStatus = factor(
+        ifelse(grepl("NP", rownames(df)), "NOT_PREGNANT", "PREGNANT")
+      ),
+      df
+    )
+    
+    # Save to TSV
+    filename <- paste0("matrices/", prefix, "_matrix_", dir, ".tsv")
+    write.table(df, file = filename, sep = "\t", col.names = NA, quote = FALSE)
+    message("Saved: ", filename)
+  }
+}
 
-# transpose data.frames
-vivo_matrix <- as.data.frame(t(vivo_matrix_emb2endo))
-vitro_matrix <- as.data.frame(t(vitro_matrix_emb2endo))
+# Generate and save all 6 datasets (3 vivo, 3 vitro)
+process_and_save_matrices(vivo_raw, "vivo")
+process_and_save_matrices(vitro_raw, "vitro")
 
 
+# =========================================================================
+# PHASE 2: LOAD READY DATASETS & MODELING PIPELINE
+# Load whichever variation you want to test and run the experiments.
+# =========================================================================
 
-# ===== ADD 'PregnancyStatus' =====
-# ----- vivo -----
-rn <- rownames(vivo_matrix)
-vivo_matrix <- cbind(
-  PregnancyStatus = ifelse(
-    grepl("NP", rn),
-    "NOT_PREGNANT",
-    "PREGNANT"
-  ),
-  vivo_matrix
-)
+# Select which variation you want to load: "both", "emb2endo", or "endo2emb"
+selected_variation <- "emb2endo" # Change this string to load different datasets
 
+vivo_matrix <- read.table(paste0("matrices/vivo_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
+vitro_matrix <- read.table(paste0("matrices/vitro_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
+
+# Ensure PregnancyStatus is a factor after loading
 vivo_matrix$PregnancyStatus <- factor(vivo_matrix$PregnancyStatus)
-
-# ----- vitro -----
-rn <- rownames(vitro_matrix)
-vitro_matrix <- cbind(
-  PregnancyStatus = ifelse(
-    grepl("NP", rn),
-    "NOT_PREGNANT",
-    "PREGNANT"
-  ),
-  vitro_matrix
-)
-
 vitro_matrix$PregnancyStatus <- factor(vitro_matrix$PregnancyStatus)
-
 
 
 # ===== TRAIN-TEST SPLIT =====
@@ -145,7 +164,6 @@ build_split <- function(df, split_info) {
 }
 
 
-
 # ===== TRAINING, TESTING AND EVALUATING RANDOM FOREST MODELS =====
 run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) { 
   
@@ -157,8 +175,8 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
   split_info <- sample_entities(
     entities$embryos,
     entities$endos,
-    train_n = train_n, # Pass it to the sampler
-    test_n = test_n,   # Pass it to the sampler
+    train_n = train_n, 
+    test_n = test_n,   
     seed = seed
   )
   
@@ -187,8 +205,6 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
   )
   
   # ---- predictions ----
-  # Because we trained on 0/1, the model predicts a numeric probability of PREGNANT 
-  # (e.g., 0.85 means 85% confidence it is PREGNANT)
   preds_prob <- predict(model, x_test)
   
   # Threshold at 0.5 to convert the probability back to class labels
@@ -198,10 +214,7 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
   cm <- confusionMatrix(preds_factor, y_test_factor)
   
   # ---- ROC and AUC ANALYSIS ----
-  # Calculate the ROC curve by comparing the true labels to the predicted probabilities
   roc_obj <- roc(response = y_test_factor, predictor = preds_prob, quiet = TRUE)
-  
-  # Extract the Area Under the Curve (AUC)
   auc_value <- as.numeric(auc(roc_obj))
   
   # ---- base feature importance ----
@@ -213,10 +226,9 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
     seed = seed
   )
   
-  # ---- SHAP ANALYSIS ----
+  # ---- SHAP analysis ----
   ranger_model <- model$finalModel
   
-  # Unify and compute SHAP (This will now run smoothly as a numeric tree)
   unified <- treeshap::unify(ranger_model, x_train)
   shap_res <- treeshap::treeshap(unified, x_test, verbose = FALSE)
   
@@ -247,14 +259,13 @@ run_rf_experiment <- function(df, seed, dataset_name, train_n, test_n) {
 }
 
 
-
 # ===== RUN PIPELINE =====
-seeds <- c(64,28,21,94,41,12,53,22,17,62)
+set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 10 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-job_name <- "jobname_"
-results <- lapply(seeds, function(s) { # 'seeds' or 'random_seeds'
+job_name <- paste0("jobname_", selected_variation, "_") # begin all the names of the result-files with a set jobname
+results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
   
   # Run vivo with a 7/4 split
   vivo_res <- run_rf_experiment(vivo_matrix, s, "vivo", train_n = 7, test_n = 4)
@@ -282,8 +293,8 @@ summary_stats <- results_df %>%
     sd_accuracy   = sd(accuracy),
     mean_kappa    = mean(kappa),
     sd_kappa      = sd(kappa),
-    mean_auc    = mean(auc),
-    sd_auc      = sd(auc)
+    mean_auc      = mean(auc),
+    sd_auc        = sd(auc)
   )
 
 importance_summary <- importance_df %>%
@@ -306,6 +317,9 @@ shap_summary <- shap_df %>%
 
 print(summary_stats)
 print(head(shap_summary)) # Just printing the top features to keep console clean
+
+# Added `dir.create` to prevent crashes if the output folder doesn't exist yet
+if(!dir.exists("model_results")) dir.create("model_results") 
 
 timestamp <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
 write.csv(results_df, paste0("model_results/", job_name, "rf_seed_results_", timestamp, ".csv"), row.names = FALSE)
