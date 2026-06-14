@@ -83,12 +83,12 @@ process_and_save_matrices(vitro_raw, "vitro")
 # =========================================================================
 
 # Select which variation you want to load: "both", "emb2endo", or "endo2emb"
-selected_variation <- "emb2endo" # Change this string to load different datasets
+selected_variation <- "endo2emb" # Change this string to load different datasets
 
 # OPTIONAL: Provide the path to your generated consensus feature list to subset the data.
 # If you want to run on ALL features, set this to NULL.
-feature_list_path <- "feature_lists/consensus_top_20_features_2026-06-14_12h08m02s.csv" 
-# feature_list_path <- NULL
+#feature_list_path <- "feature_lists/consensus_top_20_features_2026-06-14_12h08m02s.csv" 
+feature_list_path <- NULL
 
 # ----- LOAD DATA -----
 vivo_matrix <- read.table(paste0("matrices/vivo_matrix_", selected_variation, ".tsv"), header = TRUE, sep = "\t", row.names = 1)
@@ -128,15 +128,26 @@ if (!is.null(feature_list_path) && file.exists(feature_list_path)) {
   job_name <- paste0("jobname_", selected_variation, "_all_")
 }
 
-# ===== TRAIN-TEST SPLIT =====
+# ===== TRAIN-TEST SPLIT (UPDATED) =====
+
 extract_entities <- function(df) {
   rn <- rownames(df)
   parts <- strsplit(rn, "\\|")
-  embryos <- unique(sapply(parts, `[`, 1))
-  endos   <- unique(sapply(parts, `[`, 2))
+  
+  # Flatten out all sample names from both sides
+  all_samples <- unique(unlist(parts))
+  
+  # Dynamically assign based on your naming conventions
+  # Embryos start with Zo_ or SW_
+  embryos <- all_samples[grepl("^(Zo|SW)_", all_samples)]
+  
+  # Endometrium starts with NP_ or PR_
+  endos <- all_samples[grepl("^(NP|PR)_", all_samples)]
   
   list(embryos = embryos, endos = endos)
 }
+
+# (Keep split_embryos, split_endos, and sample_entities exactly the same)
 
 split_embryos <- function(embryos) {
   list(
@@ -186,11 +197,15 @@ sample_entities <- function(embryos, endos, train_n = 6, test_n = 3, seed = 64) 
 build_split <- function(df, split_info) {
   rn <- rownames(df)
   parts <- strsplit(rn, "\\|")
-  embryo <- sapply(parts, `[`, 1)
-  endo   <- sapply(parts, `[`, 2)
   
-  train_idx <- embryo %in% split_info$train_embryos & endo %in% split_info$train_endos
-  test_idx <- embryo %in% split_info$test_embryos & endo %in% split_info$test_endos
+  # A row belongs in the train set if its parts contain a valid train embryo AND a valid train endo
+  train_idx <- sapply(parts, function(p) {
+    any(p %in% split_info$train_embryos) & any(p %in% split_info$train_endos)
+  })
+  
+  test_idx <- sapply(parts, function(p) {
+    any(p %in% split_info$test_embryos) & any(p %in% split_info$test_endos)
+  })
   
   list(
     train = df[train_idx, , drop = FALSE],
@@ -299,7 +314,7 @@ set_seeds <- c(64,28,21,94,41,12,53,22,17,62)
 random_seeds <- sample.int(1000, 10) # generate vector with 20 random seeds from range 1-1000
 
 # train, run and evaluate models on given vector of seeds
-job_name <- paste0("10setseeds_SELECTEDFEATURES__", selected_variation, "_") # begin all the names of the result-files with a set jobname
+job_name <- paste0("10setseeds_", selected_variation, "_") # begin all the names of the result-files with a set jobname
 results <- lapply(set_seeds, function(s) { # set either 'set_seeds', 'random_seeds', or some other vector with seeds
   
   # Run vivo with a 7/4 split
