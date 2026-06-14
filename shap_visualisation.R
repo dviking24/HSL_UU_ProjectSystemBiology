@@ -7,12 +7,12 @@ library(shapviz)
 # CONFIGURATION
 # =========================================================================
 # Select the specific variation, dataset, and seed model you want to dissect
-TARGET_VARIATION <- "endo2emb"       # 'emb2endo', 'endo2emb', 'both'
+TARGET_VARIATION <- "both"       # 'emb2endo', 'endo2emb', 'both'
 TARGET_DATASET   <- "vivo"       # "vivo" or "vitro"
 TARGET_SEED      <- 64
 
 # Point to your auto-saved model directory (Update timestamps to match your folder!)
-MODEL_PATH <- "saved_models/endo2emb_Top20SHAP_Only_endo2emb_subset_2026-06-14_18h50m48s/endo2emb_Top20SHAP_Only_endo2emb_subset_vivo_model_seed_64.rds"
+MODEL_PATH <- "saved_models/both_Top20SHAP_Only_both_subset_2026-06-14_18h53m44s/both_Top20SHAP_Only_both_subset_vivo_model_seed_64.rds"
 MATRIX_PATH <- paste0("matrices/", TARGET_DATASET, "_matrix_", TARGET_VARIATION, ".tsv")
 
 # =========================================================================
