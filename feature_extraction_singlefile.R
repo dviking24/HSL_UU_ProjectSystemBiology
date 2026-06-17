@@ -5,7 +5,7 @@ shap_summary_path <- "model_results/endo2emb/10setseeds_endo2emb_rf_shap_importa
 shap_data <- read.csv(shap_summary_path)
 
 # 2. Extract the top N (e.g., 20) features per dataset based on mean_shap
-N_features <- 20
+N_features <- 10
 top_shap_list <- shap_data %>%
   group_by(dataset) %>%
   slice_max(order_by = mean_shap, n = N_features, with_ties = FALSE) %>%

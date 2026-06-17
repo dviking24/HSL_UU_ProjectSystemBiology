@@ -7,12 +7,12 @@ library(shapviz)
 # CONFIGURATION
 # =========================================================================
 # Select the specific variation, dataset, and seed model you want to dissect
-TARGET_VARIATION <- "both"       # 'emb2endo', 'endo2emb', 'both'
-TARGET_DATASET   <- "vivo"       # "vivo" or "vitro"
+TARGET_VARIATION <- "endo2emb"       # 'emb2endo', 'endo2emb', 'both'
+TARGET_DATASET   <- "vitro"       # "vivo" or "vitro"
 TARGET_SEED      <- 64
 
 # Point to your auto-saved model directory (Update timestamps to match your folder!)
-MODEL_PATH <- "saved_models/both_Top20SHAP_Only_both_subset_2026-06-14_18h53m44s/both_Top20SHAP_Only_both_subset_vivo_model_seed_64.rds"
+  MODEL_PATH <- "saved_models/endo2emb_Top10SHAP_Only_endo2emb_subset_2026-06-17_23h28m49s/endo2emb_Top10SHAP_Only_endo2emb_subset_vitro_model_seed_64.rds"
 MATRIX_PATH <- paste0("matrices/", TARGET_DATASET, "_matrix_", TARGET_VARIATION, ".tsv")
 
 # =========================================================================
@@ -67,7 +67,7 @@ message("--> Code dynamically selected the top SHAP feature: ", top_feature_name
 
 # 1. Native Global Feature Importance (Bar Chart of Mean Absolute SHAP)
 message("--> Rendering Native Feature Importance Plot...")
-p1 <- plot_feature_importance(treeshap_res, max_vars = 15)
+p1 <- plot_feature_importance(treeshap_res, max_vars = 10)
 print(p1)
 
 # 2. Native Feature Dependence Plot 
