@@ -1,8 +1,3 @@
-#remove NP-PR
-
-#take different seeds
-
-
 #devtools::install_github("greenelab/TDM", build_vignettes = TRUE)
 #install.packages("data.table")
 #install.packages("glue")
@@ -11,6 +6,7 @@ library(TDM)
 library(ggplot2)
 library(data.table)
 library(pheatmap)
+library(png)
 
 # core data
 data_endom <- read.csv("Datasets/DataEndom.txt", header = TRUE, sep = "\t", row.names = 1)
@@ -136,7 +132,8 @@ df_endom_liganden_voor_vitro     <- endom_norm_v[rownames(endom_norm_v) %in% lig
 df_endom_receptors_voor_vitro    <- endom_norm_v[rownames(endom_norm_v) %in% receptors, ]
 df_endom_ligreceptors_voor_vitro <- endom_norm_v[rownames(endom_norm_v) %in% ligreceptors, ]
 
-
+length(colnames(endom_norm))
+length(colnames(vivo_norm))
 #indentifying rows and columns
 head(rownames(df_endom_liganden_voor_vivo))
 head(rownames(df_blastovivo_receptors))
@@ -173,16 +170,35 @@ build_lr_matrix <- function(ligand_matr,
   )
   
   # Gives all possible sample pairs a name
-  # Sample01, SampleEndo01 --> Sample01-SampleEndo01
+  # SampleEmbryo01, SampleEndo01 --> SampleEmbryo01-SampleEndo01
   
-  sample_names <- as.vector(
-    outer(
-      colnames(ligand_matr),
-      colnames(receptor_matr),
-      paste,
-      sep = "-"
-    )
+  sample_name_pairs <- expand.grid(
+    lig = colnames(ligand_matr),
+    rec = colnames(receptor_matr),
+    stringsAsFactors = FALSE
   )
+  
+  sample_name_pairs$pair <- paste(
+    sample_name_pairs$lig,
+    sample_name_pairs$rec,
+    sep = "-"
+  )
+  
+  sample_name_pairs$type <- ifelse(
+    (grepl("NP", sample_name_pairs$lig) & grepl("PR", sample_name_pairs$rec)) |
+      (grepl("PR", sample_name_pairs$lig) & grepl("NP", sample_name_pairs$rec)),
+    "INVALID",
+    "VALID"
+  )
+  
+  valid_pairs <- sample_name_pairs[sample_name_pairs$type == "VALID", ]
+  
+  sample_names <- valid_pairs$pair
+  
+  col_index <- setNames(seq_along(sample_names), sample_names)
+  
+  valid_lookup <- setNames(rep(TRUE, length(sample_names)), sample_names)
+  
   
   # Makes an empty matrix
   M <- matrix(
@@ -192,6 +208,8 @@ build_lr_matrix <- function(ligand_matr,
     dimnames = list(LR, sample_names)
   )
   
+  
+  
   # Calculates the interaction score for echt ligand-receptor pair
   
   for (i in seq_len(nrow(data))) {
@@ -199,43 +217,56 @@ build_lr_matrix <- function(ligand_matr,
     ligand <- data$ligand_ensembl[i]
     receptor <- data$receptor_ensembl[i]
     
+    # skip als genen niet bestaan in matrices
     if (!(ligand %in% rownames(ligand_matr))) next
     if (!(receptor %in% rownames(receptor_matr))) next
     
-    col_idx <- 1
+    # expression ophalen (1x per ligand-receptor pair per sample-combo)
+    lig_expr_all <- ligand_matr[ligand, , drop = TRUE]
+    rec_expr_all <- receptor_matr[receptor, , drop = TRUE]
     
-    for (lig_col in colnames(ligand_matr)) {
+    for (lig_col in names(lig_expr_all)) {
       
-      lig_expr <- ligand_matr[ligand, lig_col]
+      lig_expr <- lig_expr_all[lig_col]
       
-      for (rec_col in colnames(receptor_matr)) {
+      for (rec_col in names(rec_expr_all)) {
         
-        rec_expr <- receptor_matr[receptor, rec_col]
+        rec_expr <- rec_expr_all[rec_col]
         
-        M[i, col_idx] <- lig_expr * rec_expr
+        # sample pair naam
+        pair_name <- paste(lig_col, rec_col, sep = "-")
         
-        col_idx <- col_idx + 1
+        # alleen valid pairs gebruiken
+        if (is.na(valid_lookup[pair_name])) next
+        
+        # kolom index opzoeken
+        idx <- col_index[[pair_name]]
+        
+        # safety check
+        if (is.null(idx)) next
+        
+        # score berekenen
+        M[i, idx] <- lig_expr * rec_expr
       }
     }
   }
-  
   return(M)
 }
 
 # Sanity check voor de matrix, checken op NA's en structuur
 matrix_sanity_check <- function(matrix) {
-    cat(
-      "Totaal aantal cellen:", length(matrix), "\n",
-      "NA:", sum(is.na(matrix)), "\n",
-      "Niet-NA:", sum(!is.na(matrix)), "\n",
-      "Percentage NA:", round(100 * mean(is.na(matrix)), 2), "%\n",
-      "Aantal volledige NA-kolommen:", sum(colSums(!is.na(matrix)) == 0), "\n",
-      "Aantal volledige NA-rijen:", sum(rowSums(!is.na(matrix)) == 0),
-      "Aantal rijnamen:", nrow(matrix),
-      "Aantal unieke rijnamen:", length(unique(rownames(matrix))),
-      "Aantal kolomnamen:", ncol(matrix),
-      "Aantal unieke kolomnamen", length(unique(colnames(matrix)))
-    )
+  cat(
+    "Totaal aantal cellen:", length(matrix), "\n",
+    "NA:", sum(is.na(matrix)), "\n",
+    "Niet-NA:", sum(!is.na(matrix)), "\n",
+    "Percentage NA:", round(100 * mean(is.na(matrix)), 2), "%\n",
+    "Aantal volledige NA-kolommen:", sum(colSums(!is.na(matrix)) == 0), "\n",
+    "Aantal volledige NA-rijen:", sum(rowSums(!is.na(matrix)) == 0),
+    "Aantal rijnamen:", nrow(matrix),
+    "Aantal unieke rijnamen:", length(unique(rownames(matrix))),
+    "Aantal kolomnamen:", ncol(matrix),
+    "Aantal unieke kolomnamen", length(unique(colnames(matrix)))
+  )
 }
 
 # Kolommen en rijen filteren als ze volledig NA zijn
@@ -274,11 +305,11 @@ make_matrix <- function(ligand_m, receptor_m, naam_heatmap){
     cluster_rows = FALSE,
     cluster_cols = FALSE,
     filename = glue("figures/{naam_heatmap}/heatmap.pdf")
-    )
+  )
   
   #Meest en minst variabele rijen laten zien
   row_var <- apply(matrix2, 1, var, na.rm = TRUE)
-
+  
   #Meest en minst variabele kolommen laten zien
   col_var <- apply(matrix2, 2, var, na.rm = TRUE)
   
@@ -323,6 +354,27 @@ make_matrix <- function(ligand_m, receptor_m, naam_heatmap){
   return(matrix2)
 }
 
+control_PR_NP <- function(matrix) {
+  PR_pairs <- colnames(matrix)[
+    (grepl("PR", colnames(matrix)))
+  ]
+  
+  NP_pairs <- colnames(matrix)[
+    (grepl("NP", colnames(matrix)))
+  ]
+  
+  
+  cat("length PR pairs:", length(PR_pairs), "\n")
+  head(PR_pairs)
+  
+  cat("length NP pairs:", length(NP_pairs), "\n")
+  head(NP_pairs)
+  
+  cat("length total pairs:", length(colnames(matrix)), "\n")
+  head(colnames(matrix))
+  cat("sum of PR and NP pairs", length(PR_pairs)+length(NP_pairs))
+}
+
 # Grote vivo matrix maken
 
 vivo_lig_matrix <- make_matrix(
@@ -339,15 +391,17 @@ vivo_rec_matrix <- make_matrix(
 
 vivo_matrix <- cbind(vivo_lig_matrix, vivo_rec_matrix)
 
-pheatmap(
-  vivo_matrix,
-  cluster_rows = TRUE,
-  cluster_cols = TRUE,
-  fontsize_row = 6,
-  filename = glue("figures/vivo/heatmap.pdf")
-)
+# pheatmap(
+#   vivo_matrix,
+#   cluster_rows = TRUE,
+#   cluster_cols = TRUE,
+#   fontsize_row = 6,
+#   filename = glue("figures/vivo/heatmap.pdf")
+# )
 
-# opslaan als matrices/vitro_matrix.tsv
+control_PR_NP(vivo_matrix)
+
+# opslaan als matrices/vivo_matrix.tsv
 
 write.table(
   vivo_matrix,
@@ -356,6 +410,36 @@ write.table(
   quote = FALSE,
   col.names = NA
 )
+
+# opslaan vivo ligand-embryo receptor-endometrium
+write.table(
+  vivo_lig_matrix,
+  file = "matrices/vivo_lig-Embryo_rec-Endo_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+
+# opslaan vivo ligand-endometrium receptor-embryo
+write.table(
+  vivo_rec_matrix,
+  file = "matrices/vivo_lig-Endo_rec-Enbryo_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+
+
+
+
+
+
+
+
+
+
+
+
 
 # Grote vitro matrix maken
 
@@ -373,18 +457,44 @@ vitro_rec_matrix <- make_matrix(
 
 vitro_matrix <- cbind(vitro_lig_matrix, vitro_rec_matrix)
 
-pheatmap(
-  vitro_matrix,
-  cluster_rows = TRUE,
-  cluster_cols = TRUE,
-  fontsize_row = 6,
-  filename = glue("figures/vitro/heatmap.pdf")
+# pheatmap(
+#   vitro_matrix,
+#   cluster_rows = TRUE,
+#   cluster_cols = TRUE,
+#   fontsize_row = 6,
+#   filename = glue("figures/vitro/heatmap.pdf")
+# )
+
+control_PR_NP(vitro_matrix)
+
+# Zijn er nog NP-PR paren aanwezig?
+sum(
+  grepl("NP", colnames(vitro_matrix)) &
+    grepl("-.*PR", colnames(vitro_matrix))
 )
 
 # opslaan als matrices/vitro_matrix.tsv
 write.table(
   vitro_matrix,
   file = "matrices/vitro_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+
+# opslaan vitro ligand-embryo receptor-endometrium
+write.table(
+  vitro_lig_matrix,
+  file = "matrices/vitro_lig-Embryo_rec-Endo_matrix.tsv",
+  sep = "\t",
+  quote = FALSE,
+  col.names = NA
+)
+
+# opslaan vitro ligand-endometrium receptor-embryo
+write.table(
+  vitro_rec_matrix,
+  file = "matrices/vitro_lig-Endo_rec-Enbryo_matrix.tsv",
   sep = "\t",
   quote = FALSE,
   col.names = NA
@@ -419,33 +529,5 @@ write.table(
 # View(top_40_vivo)
 # 
 # View(data_ligrecep)
-# View(endom_norm)
-#Meest en minst variabele rijen laten zien
 
-row_var <- apply(vivo_matrix, 1, var, na.rm = TRUE)
-top_rows <- names(sort(row_var, decreasing = TRUE))[1:100]
 
-pheatmap(
-  vivo_matrix[top_rows, ],
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  fontsize_row = 6,
-  filename = glue("figures/vivo/top_rows_var_heatmap.pdf")
-)
-
-row_var <- apply(vitro_matrix, 1, var, na.rm = TRUE)
-top_rows <- names(sort(row_var, decreasing = TRUE))[1:40]
-
-col_var <- apply(vitro_matrix, 2, var, na.rm = TRUE)
-top_cols <- names(sort(col_var, decreasing = TRUE))[1:20]
-bottom_cols <- names(sort(col_var, decreasing = FALSE))[1:20]
-all_cols <- c(top_cols, bottom_cols)
-
-pheatmap(
-  vitro_matrix[top_rows, all_cols],
-  cluster_rows = TRUE,
-  cluster_cols = FALSE,
-  fontsize_row = 6,
-  fontsize_col = 6,
-  filename = glue("figures/vitro/top_heatmap.pdf")
-)
