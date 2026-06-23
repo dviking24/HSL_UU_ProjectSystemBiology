@@ -423,7 +423,7 @@ write.table(
 # opslaan vivo ligand-endometrium receptor-embryo
 write.table(
   vivo_rec_matrix,
-  file = "matrices/vivo_lig-Endo_rec-Enbryo_matrix.tsv",
+  file = "matrices/vivo_lig-Endo_rec-Embryo_matrix.tsv",
   sep = "\t",
   quote = FALSE,
   col.names = NA
@@ -494,7 +494,7 @@ write.table(
 # opslaan vitro ligand-endometrium receptor-embryo
 write.table(
   vitro_rec_matrix,
-  file = "matrices/vitro_lig-Endo_rec-Enbryo_matrix.tsv",
+  file = "matrices/vitro_lig-Endo_rec-Embryo_matrix.tsv",
   sep = "\t",
   quote = FALSE,
   col.names = NA

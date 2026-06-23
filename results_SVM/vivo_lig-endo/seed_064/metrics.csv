@@ -1,0 +1,2 @@
+"seed","dataset","train_accuracy","test_accuracy","train_kappa","test_kappa","sensitivity","specificity","balanced_accuracy","auc"
+64,"vivo_lig-endo",1,0.875,1,0.75,0.75,1,0.875,0.93359375
