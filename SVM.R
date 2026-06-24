@@ -11,6 +11,8 @@ library(e1071)
 #install.packages("kernelshap")
 library(kernelshap)
 library(glue)
+library(tibble)
+library(png)
 
 # Which dataset to run
 # Options are:
@@ -19,10 +21,11 @@ library(glue)
 # ALL
 WHICH <- "VIVO_VITRO_lig-endo"
 
-SEEDS_TO_RUN <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62)
-SEED <- 64
+SEEDS_TO_RUN <- c(94)
+# SEED <- 64
 
-COMPARE_VAR_IMP <- c(10, 15, 20, 25, 30, 40)
+COMPARE_VAR_IMP <- c(10, 15, 20, 25, 30, 40, 60, 80, 100, 120, 200, 300, 400)
+SHAP_AMT_FEATURE <- 10
 
 VIVO_TRAIN_A <- 7
 VIVO_TEST_A <- 4
@@ -283,7 +286,7 @@ evaluate_predictions <- function(model, X_train, y_train, X_test, y_test) {
 
 
 # ROC AUC curve
-plot_roc_curve <- function(model, X_test, y_test) {
+plot_roc_curve <- function(model, X_test, y_test, seed_dir) {
   
   probs <- predict(
     model,
@@ -297,11 +300,22 @@ plot_roc_curve <- function(model, X_test, y_test) {
     levels = c("NOT_PREGNANT", "PREGNANT")
   )
   
-  plot(
+  png(
+    filename = file.path(seed_dir, "roc_curve.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- plot(
     roc_obj,
     print.auc = TRUE,
     main = "ROC curve"
   )
+  
+  print(p)
+  
+  dev.off()
   
   return(list(
     roc = roc_obj,
@@ -311,17 +325,28 @@ plot_roc_curve <- function(model, X_test, y_test) {
 
 
 # Confusion Matrix
-plot_confusion_matrix <- function(model, X_test, y_test, test_pred) {
+plot_confusion_matrix <- function(model, X_test, y_test, test_pred, seed_dir) {
   cm <- confusionMatrix(test_pred, y_test)
   cm_df <- as.data.frame(cm$table)
   
-  ggplot(cm_df,
-         aes(Prediction, Reference, fill = Freq)) +
-    geom_tile() +
-    geom_text(aes(label = Freq)) +
-    scale_fill_gradient(low = "white", high = "red") +
-    theme_minimal() +
-    ggtitle("Confusion Matrix")
+  png(
+    filename = file.path(seed_dir, "confusion_matrix.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- ggplot(cm_df,
+        aes(Prediction, Reference, fill = Freq)) +
+      geom_tile() +
+      geom_text(aes(label = Freq)) +
+      scale_fill_gradient(low = "white", high = "red") +
+      theme_minimal() +
+      ggtitle("Confusion Matrix")
+  
+  print(p)
+  
+  dev.off()
   
   return(list(
     cm = cm,
@@ -331,7 +356,7 @@ plot_confusion_matrix <- function(model, X_test, y_test, test_pred) {
 
 
 # PCA of the testset data
-plot_pca <- function(X_test, y_test, test_pred) {
+plot_pca <- function(X_test, y_test, test_pred, seed_dir) {
   pca <- prcomp(X_test, scale. = TRUE)
   
   pca_df <- data.frame(
@@ -341,13 +366,24 @@ plot_pca <- function(X_test, y_test, test_pred) {
     pred = test_pred
   )
   
-  ggplot(
+  png(
+    filename = file.path(seed_dir, "pca.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- ggplot(
     pca_df,
     aes(PC1, PC2, color = label)
   ) +
     geom_point(size = 3) +
     theme_minimal() +
     ggtitle("PCA")
+  
+  print(p)
+  
+  dev.off()
   
   return(list(
     pca = pca,
@@ -357,12 +393,25 @@ plot_pca <- function(X_test, y_test, test_pred) {
 
 
 # Feature Importance 
-plot_feature_importance <- function(model) {
+plot_feature_importance <- function(model, seed_dir) {
   imp <- varImp(model)
-  plot(
+  
+  png(
+    filename = file.path(seed_dir, "varImportance.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- plot(
     imp,
     top = 25
   )
+  
+  print(p)
+  
+  dev.off()
+  
   return(imp)
 }
 
@@ -422,8 +471,15 @@ permutation_importance <- function(model, X, y) {
 }
 
 # Visualiseer permutation importance
-plot_permutation_importance <- function(perm_df) {
-  ggplot(
+plot_permutation_importance <- function(perm_df, seed_dir) {
+  png(
+    filename = file.path(seed_dir, "permutation_importance.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- ggplot(
     perm_df,
     aes(
       x = reorder(feature, importance),
@@ -438,10 +494,14 @@ plot_permutation_importance <- function(perm_df) {
       x = "Feature",
       y = "Importance"
     )
+  
+  print(p)
+  
+  dev.off()
 }
 
 # Visualiseer decision boundary met 2 features
-plot_decision_boundary <- function(X_train, y_train) {
+plot_decision_boundary <- function(X_train, y_train, seed_dir) {
   
   top_features <- names(
     sort(
@@ -478,7 +538,14 @@ plot_decision_boundary <- function(X_train, y_train) {
     grid
   )
   
-  ggplot() +
+  png(
+    filename = file.path(seed_dir, "decision_boundry.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- ggplot() +
     geom_tile(
       data = grid,
       aes(X1, X2, fill = pred),
@@ -492,6 +559,10 @@ plot_decision_boundary <- function(X_train, y_train) {
     theme_minimal() +
     ggtitle("SVM Decision Boundary")
   
+  print(p)
+  
+  dev.off()
+  
   return(list(
     model = model_small,
     grid = grid,
@@ -501,25 +572,25 @@ plot_decision_boundary <- function(X_train, y_train) {
 }
 
 
-prediction_figures <- function(model, X_train, X_test, y_train, y_test) {
+prediction_figures <- function(model, X_train, X_test, y_train, y_test, seed_dir) {
   pred_list <- evaluate_predictions(model, X_train, y_train, X_test, y_test)
   train_pred <- pred_list$train_pred
   test_pred <- pred_list$test_pred
   train_conf <- pred_list$train_conf
   test_conf <- pred_list$test_conf
   
-  roc_prob <- plot_roc_curve(model, X_test, y_test)
+  roc_prob <- plot_roc_curve(model, X_test, y_test, seed_dir)
 
-  conf <- plot_confusion_matrix(model, X_test, y_test, test_pred)
+  conf <- plot_confusion_matrix(model, X_test, y_test, test_pred, seed_dir)
 
-  pca_data <- plot_pca(X_test, y_test, test_pred)
+  pca_data <- plot_pca(X_test, y_test, test_pred, seed_dir)
 
-  imp <- plot_feature_importance(model)
+  imp <- plot_feature_importance(model, seed_dir)
 
   perm_df <- permutation_importance(model, X_test, y_test)
-  plot_permutation_importance(perm_df)
+  plot_permutation_importance(perm_df, seed_dir)
 
-  db_list <- plot_decision_boundary(X_train, y_train)
+  db_list <- plot_decision_boundary(X_train, y_train, seed_dir)
   # model_db <- db_list$model
   # grid_db <- db_list$grid
   # plot_df_db <- db_list$plot_df
@@ -560,6 +631,56 @@ prediction_figures <- function(model, X_train, X_test, y_train, y_test) {
     
     descision_boundary = db_list
   ))
+}
+
+
+##-------------------------------------------------------------------------------##
+##                            SAVING IMPORTANT DATA                              ##
+##-------------------------------------------------------------------------------##
+
+
+save_important_data <- function(pred_results, y_test, seed, name, seed_dir) {
+  # Important metrics
+  metrics <- data.frame(
+    seed = seed,
+    dataset = name,
+    
+    train_accuracy = pred_results$train_accuracy,
+    test_accuracy  = pred_results$test_accuracy,
+    
+    train_kappa = pred_results$train_kappa,
+    test_kappa  = pred_results$test_kappa,
+    
+    sensitivity = pred_results$sensitivity,
+    specificity = pred_results$specificity,
+    balanced_accuracy = pred_results$balanced_accuracy,
+    
+    auc = as.numeric(pred_results$roc$auc)
+  )
+  
+  # Feature importance
+  write.csv(
+    pred_results$feature_importance$importance,
+    file.path(seed_dir, "feature_importance.csv"),
+    row.names = FALSE
+  )
+  
+  write.csv(
+    pred_results$permutation_importance,
+    file.path(seed_dir, "permutation_importance.csv"),
+    row.names = FALSE
+  )
+  
+  # Predictions
+  write.csv(
+    data.frame(
+      truth = y_test,
+      prediction = pred_results$test_pred
+    ),
+    file.path(seed_dir, "test_predictions.csv"),
+    row.names = FALSE
+  )
+  return(metrics)
 }
 
 
@@ -659,44 +780,62 @@ accuracy_function <- function(variable) {
   return(accuracy)
 }
 
-compare_varImp <- function(model, X_train, X_test, y_train, y_test, list_amt_feat, seed) {
-  test_accuracies <- c()
-  train_accuracies <- c()
-  models <- list()
-  X_trains <- list()
-  X_tests <- list()
-  for (number in list_amt_feat) {
-    varImp_variables <- varImp_function(model, number, X_train, X_test, y_train, y_test, seed)
+compare_varImp <- function(model, X_train, X_test, y_train, y_test,
+                           list_amt_feat, seed, shap_amt_feature) {
+  
+  results <- vector("list", length(list_amt_feat))
+  
+  for (i in seq_along(list_amt_feat)) {
     
-    train_accuracies <-  c(train_accuracies, accuracy_function(varImp_variables$train_conf))
-    test_accuracies <- c(test_accuracies, accuracy_function(varImp_variables$test_conf))
-    models[[length(models) + 1]] <- varImp_variables$model
-    X_trains[[length(X_trains) + 1]] <- varImp_variables$X_train
-    X_tests[[length(X_tests) + 1]] <- varImp_variables$X_test
+    number <- list_amt_feat[i]
     
+    varImp_variables <- varImp_function(
+      model, number,
+      X_train, X_test,
+      y_train, y_test,
+      seed
+    )
+    
+    results[[i]] <- list(
+      amount_of_features = number,
+      test_accuracy = accuracy_function(varImp_variables$test_conf),
+      train_accuracy = accuracy_function(varImp_variables$train_conf),
+      model = varImp_variables$model,
+      X_train = varImp_variables$X_train,
+      X_test = varImp_variables$X_test
+    )
   }
   
-  accuracy_df <- data.frame(
-    amount_of_features = list_amt_feat,
-    test_accuracy = test_accuracies,
-    train_accuracy = train_accuracies
+  results_df <- tibble::tibble(
+    amount_of_features = sapply(results, `[[`, "amount_of_features"),
+    test_accuracy = sapply(results, `[[`, "test_accuracy"),
+    train_accuracy = sapply(results, `[[`, "train_accuracy"),
+    model = lapply(results, `[[`, "model"),
+    X_train = lapply(results, `[[`, "X_train"),
+    X_test = lapply(results, `[[`, "X_test")
   )
   
-  max_acc <- max(accuracy_df$test_accuracy)
-  candidate_idx <- which(accuracy_df$test_accuracy == max_acc)
+  max_acc <- max(results_df$test_accuracy)
+  
+  candidate_idx <- which(results_df$test_accuracy == max_acc)
+  
   best_idx <- candidate_idx[
-    which.min(accuracy_df$amount_of_features[candidate_idx])
+    which.min(results_df$amount_of_features[candidate_idx])
   ]
   
-  best_model <- models[[best_idx]]
-  best_X_train <- X_trains[[best_idx]]
-  best_X_test <- X_tests[[best_idx]]
-  print(accuracy_df[best_idx, ])
+  shap_idx <- which(results_df$amount_of_features == shap_amt_feature)
+  
+  print(results_df[best_idx,
+                   c("amount_of_features",
+                     "test_accuracy",
+                     "train_accuracy")])
   
   return(list(
-    best_model = best_model,
-    best_X_train = best_X_train,
-    best_X_test = best_X_test
+    best_model = results_df$model[[best_idx]],
+    best_X_train = results_df$X_train[[best_idx]],
+    best_X_test = results_df$X_test[[best_idx]],
+    shap_model = results_df$model[[shap_idx]],
+    shap_X_train = results_df$X_train[[shap_idx]]
   ))
 }
 
@@ -707,18 +846,22 @@ compare_varImp <- function(model, X_train, X_test, y_train, y_test, list_amt_fea
 # Kernal shap
 
 shap_kernel_function <- function(model, X) {
+  
+  bg_X <- X[sample(nrow(X), min(70, nrow(X))), ]
+  
   kernelshap(
     object = model,
-    X = X_small,
-    bg_X = X_small,
+    X = X,
+    bg_X = bg_X,
     pred_fun = function(object, newdata) {
-      predict(object, newdata, type = "prob")[, "PREGNANT"]
+      p <- predict(object, newdata, type = "prob")
+      p[["PREGNANT"]]
     }
   )
 }
 
 # SHAP results
-shap_results <- function(shaps, feature_names) {
+shap_results <- function(shaps, feature_names, seed_dir) {
   
   shap_importance <- colMeans(abs(shaps))
   
@@ -729,12 +872,24 @@ shap_results <- function(shaps, feature_names) {
   
   shap_df <- shap_df[order(shap_df$importance, decreasing = TRUE), ]
   
-  head(shap_df, 10)
-  ggplot(head(shap_df, 10), aes(x = reorder(feature, importance), y = importance)) +
+  print(head(shap_df, 10))
+  
+  png(
+    filename = file.path(seed_dir, "shap_results.png"),
+    width = 1200,
+    height = 1000,
+    res = 150
+  )
+  
+  p <- ggplot(head(shap_df, 10), aes(x = reorder(feature, importance), y = importance)) +
     geom_col(fill = "steelblue") +
     coord_flip() +
     theme_minimal() +
     labs(title = "Top 10 SHAP features", x = "Gene", y = "Mean |SHAP|")
+  
+  print(p)
+  
+  dev.off()
 }
 
 
@@ -791,12 +946,16 @@ pipeline <- function(matrix, train_sample_amount, test_sample_amount, seeds_to_r
       X_train, X_test,
       y_train, y_test,
       COMPARE_VAR_IMP,
-      seed
+      seed,
+      SHAP_AMT_FEATURE
     )
     
     best_model <- best_list$best_model
     best_X_train <- best_list$best_X_train
     best_X_test <- best_list$best_X_test
+    
+    shap_model <- best_list$shap_model
+    shap_X_train <- best_list$shap_X_train
     
     
     ## Saving all the important information
@@ -806,61 +965,22 @@ pipeline <- function(matrix, train_sample_amount, test_sample_amount, seeds_to_r
     )
     
     # Evaluation + plots + features
-    pred_results <- prediction_figures(best_model, best_X_train, best_X_test, y_train, y_test)
+    pred_results <- prediction_figures(best_model, best_X_train, best_X_test, y_train, y_test, seed_dir)
     
-    # Important metrics
-    metrics <- data.frame(
-      seed = seed,
-      dataset = name,
-      
-      train_accuracy = pred_results$train_accuracy,
-      test_accuracy  = pred_results$test_accuracy,
-      
-      train_kappa = pred_results$train_kappa,
-      test_kappa  = pred_results$test_kappa,
-      
-      sensitivity = pred_results$sensitivity,
-      specificity = pred_results$specificity,
-      balanced_accuracy = pred_results$balanced_accuracy,
-      
-      auc = as.numeric(pred_results$roc$auc)
-    )
-    
-    write.csv(
-      metrics,
-      file.path(seed_dir, "metrics.csv"),
-      row.names = FALSE
-    )
-    
-    # Feature importance
-    write.csv(
-      pred_results$feature_importance$importance,
-      file.path(seed_dir, "feature_importance.csv"),
-      row.names = FALSE
-    )
-    
-    write.csv(
-      pred_results$permutation_importance,
-      file.path(seed_dir, "permutation_importance.csv"),
-      row.names = FALSE
-    )
-    
-    # Predictions
-    write.csv(
-      data.frame(
-        truth = y_test,
-        prediction = pred_results$test_pred
-      ),
-      file.path(seed_dir, "test_predictions.csv"),
-      row.names = FALSE
-    )
+    metrics <- save_important_data(pred_results, y_test, seed, name, seed_dir)
     
     # SHAP
-    shap_values <- shap_kernel_function(best_model, best_X_train)
+    shap_file <- file.path(seed_dir, "shap_values.rds")
     
-    saveRDS(shap_values,file.path(seed_dir, "shap_values.rds"))
+    if (file.exists(shap_file)) {
+      shap_values <- readRDS(shap_file)
+      
+    } else {
+      shap_values <- shap_kernel_function(shap_model, shap_X_train)
+      saveRDS(shap_values, shap_file)
+    }
     
-    shap_results(shap_values$S, colnames(best_X_train))
+    shap_results(shap_values$S, colnames(shap_X_train), seed_dir)
     
     # return object
     list(
@@ -873,7 +993,6 @@ pipeline <- function(matrix, train_sample_amount, test_sample_amount, seeds_to_r
       )
     )
   })
-  
   # Combine all seeds
   metrics_df <- dplyr::bind_rows(lapply(results, `[[`, "metrics"))
   
@@ -890,7 +1009,7 @@ pipeline <- function(matrix, train_sample_amount, test_sample_amount, seeds_to_r
 run_pipeline_data <- function() {
   timestamp     <- format(Sys.time(), "%Y-%m-%d_%Hh%Mm%Ss")
   
-  glue("RUNNING SVM PIPELINE FOR {WHICH} matrices at {timestamp}")
+  print(glue("RUNNING SVM PIPELINE FOR {WHICH} matrices at {timestamp}"))
   
   if (WHICH == "ALL" | WHICH == "VIVO_VITRO_lig-embryo") {
     
@@ -909,11 +1028,12 @@ run_pipeline_data <- function() {
     
     matrices <- load_matrices(vivo_file_name, vitro_file_name)
     
-    pipeline(matrices$vivo, VIVO_TRAIN_A, VIVO_TEST_A, SEED, "vivo_lig-endo")
-    # pipeline(matrices$vitro, VITRO_TRAIN_A, VITRO_TEST_A, SEED, "vitro_lig-endo")
+    # pipeline(matrices$vivo, VIVO_TRAIN_A, VIVO_TEST_A, SEEDS_TO_RUN, "vivo_lig-endo")
+    pipeline(matrices$vitro, VITRO_TRAIN_A, VITRO_TEST_A, SEEDS_TO_RUN, "vitro_lig-endo")
   }
 }
 
 run_pipeline_data()
+
 
 
