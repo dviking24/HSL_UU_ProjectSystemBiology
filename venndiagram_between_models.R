@@ -12,10 +12,10 @@ library(scales)
 # 1. SETTINGS & LOAD DATA
 # =========================================================================
 file_model1 <- "feature_lists/top_10_shap_features_endo2emb.csv"
-file_model2 <- "feature_lists/maysa_endo2emb_top10features_dataset.csv"
+file_model2 <- "feature_lists/top_10_featImp_features_endo2emb.csv"
 
 name_model1 <- "RANDOM FOREST"
-name_model2 <- "LOGISTIC REGRESSION"
+name_model2 <- "RF - featIMP"
 
 direction <- "endo2emb" 
 
