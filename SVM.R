@@ -21,7 +21,7 @@ library(png)
 # ALL
 WHICH <- "VIVO_VITRO_lig-endo"
 
-SEEDS_TO_RUN <- c(94)
+SEEDS_TO_RUN <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62)
 # SEED <- 64
 
 COMPARE_VAR_IMP <- c(10, 15, 20, 25, 30, 40, 60, 80, 100, 120, 200, 300, 400)

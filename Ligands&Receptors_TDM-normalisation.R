@@ -30,6 +30,10 @@ meta_endom       <- read.csv("Datasets/SampleInfo_Endom.txt", header = TRUE, sep
 meta_blastovivo  <- read.csv("Datasets/SampleInfo_BlastoIVV.txt", header = TRUE, sep = "\t")
 meta_blastovitro <- read.csv("Datasets/SampleInfo_BlastoIVT.txt", header = TRUE, sep = "\t")
 
+
+
+
+
 # Gen-lijsten samenstellen
 liganden     <- unique(data_ligrecep$ligand_ensembl)
 receptors    <- unique(data_ligrecep$receptor_ensembl)

@@ -1,0 +1,9 @@
+"metric","mean"
+"train_accuracy",0.998979591836735
+"test_accuracy",0.9125
+"train_kappa",0.997959183673469
+"test_kappa",0.825
+"sensitivity",0.9
+"specificity",0.925
+"balanced_accuracy",0.9125
+"auc",0.940234375
