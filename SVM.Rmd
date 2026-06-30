@@ -1,0 +1,438 @@
+---
+title: "new_SVM"
+author: "Caelin Andriesse"
+date: "2026-06-09"
+output: html_document
+---
+
+Installing packages
+
+```{r}
+# install.packages('e1071') 
+# install.packages('caTools')
+# install.packages('ggplot2')
+# install.packages('caret')
+# install.packages("pROC")
+# install.packages("ROCR")
+
+library(pROC)
+#library(ROCR)
+library(caret)
+library(e1071) 
+library(caTools)
+library(ggplot2)
+```
+
+Loading in the data and making the matrix
+
+```{r}
+naam_tsv <- "matrices/vivo_matrix.tsv"
+
+vivo_matrix <- read.table(
+  naam_tsv,
+  header = TRUE,
+  sep = "\t",
+  row.names = 1,
+  check.names = FALSE
+)
+
+vitro_matrix <- read.table(
+  "matrices/vitro_matrix.tsv",
+  header = TRUE,
+  sep = "\t",
+  row.names = 1,
+  check.names = FALSE
+)
+
+```
+
+Exploring the dataset
+
+```{r}
+head(vivo_matrix)
+```
+
+```{r}
+# pheatmap(
+#   matrix_,
+#   cluster_rows = TRUE,
+#   cluster_cols = TRUE,
+#   fontsize_row = 6,
+#   filename = glue("figures/vivo/heatmap.pdf")
+# )
+# 
+# pheatmap(
+#   vitro_matrix,
+#   cluster_rows = TRUE,
+#   cluster_cols = TRUE,
+#   fontsize_row = 6,
+#   filename = glue("figures/vitro/heatmap.pdf")
+# )
+```
+
+Data Preprocessing
+
+```{r}
+# transpose zodat samples in de rijen staan
+matrix <- as.data.frame(t(vivo_matrix))
+
+# originele sample-namen
+rn <- rownames(matrix)
+
+# target variabele toevoegen
+matrix$PregnancyStatus <- factor(
+  ifelse(
+    grepl("PR", rn),
+    "PREGNANT",
+    "NOT_PREGNANT"
+  ),
+  levels = c("NOT_PREGNANT", "PREGNANT")
+)
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+Train test split
+
+```{r}
+cols <- ifelse(y == "PREGNANT", "red", "blue")
+plot(
+  X[, 1],
+  X[, 2],
+  col = cols,
+  xlab = ,
+  ylab = ,
+  main = "Scatterplot data",
+  pch = 19,
+)
+
+legend(
+  "bottom",
+  legend = c("Pregnant", "Non-pregnant"),
+  col = c("red", "blue"),
+  pch = 19
+)
+
+```
+
+```{r}
+sum(duplicated(X))
+
+train_rows <- apply(X_train, 1, paste, collapse = "_")
+test_rows  <- apply(X_test, 1, paste, collapse = "_")
+
+sum(test_rows %in% train_rows)
+
+dim(X)
+table(y)
+
+dim(X)
+colnames(X)
+str(y)
+
+boxplot(X[,1] ~ y)
+boxplot(X[,2] ~ y)
+```
+
+```{r}
+pairs <- rownames(X)
+
+rev_pairs <- sapply(pairs, function(x) {
+  p <- strsplit(x, "-")[[1]]
+  paste(rev(p), collapse="-")
+})
+
+sum(rev_pairs %in% pairs)
+```
+
+Training the linear model
+
+```{r}
+# crossvalidatie
+ctrl <- trainControl(
+  method = "repeatedcv",
+  number = 5,
+  repeats = 3,
+  classProbs = TRUE,
+  summaryFunction = twoClassSummary
+)
+
+# SVM
+set.seed(64)
+
+svm_model <- train(
+  x = X_train,
+  y = y_train,
+  method = "svmLinear",
+  metric = "ROC",
+  trControl = ctrl,
+  tuneLength = 10
+)
+
+print(svm_model)
+pred_linear <- predict(svm_model, newdata = X_test)
+confusionMatrix(pred_linear, y_test)
+```
+
+Prediction
+
+```{r}
+#voorspellen
+pred <- predict(
+  svm_model,
+  X_test
+)
+
+#resultaten
+conf <- confusionMatrix(
+  pred,
+  y_test
+)
+
+train_pred <- predict(
+  svm_model,
+  X_train
+)
+
+train_conf <- confusionMatrix(
+  train_pred,
+  y_train
+)
+
+test_pred <- predict(
+  svm_model,
+  X_test
+)
+
+test_conf <- confusionMatrix(
+  test_pred,
+  y_test
+)
+
+probs <- predict(
+  svm_model,
+  X_test,
+  type = "prob"
+)
+
+head(probs)
+
+levels(y_test)
+
+roc_obj <- roc(
+  response = y_test,
+  predictor = probs$PREGNANT,
+  levels = c("NOT_PREGNANT", "PREGNANT")
+)
+
+plot(
+  roc_obj,
+  print.auc = TRUE,
+  main = "ROC curve - Pregnancy prediction"
+)
+
+roc_df <- data.frame(
+  FPR = 1 - roc_obj$specificities,
+  TPR = roc_obj$sensitivities
+)
+```
+
+ggplot
+
+```{r}
+library(ggplot2)
+
+ggplot(roc_df, aes(FPR, TPR)) +
+  geom_line(linewidth = 1) +
+  geom_abline(
+    slope = 1,
+    intercept = 0,
+    linetype = "dashed"
+  ) +
+  labs(
+    title = paste(
+      "ROC curve (AUC =",
+      round(as.numeric(auc(roc_obj)), 3),
+      ")"
+    ),
+    x = "False Positive Rate",
+    y = "True Positive Rate"
+  ) +
+  theme_minimal()
+```
+
+statistics prediction
+
+```{r}
+cat(
+  "\nTrain accuracy:",
+  round(train_conf$overall["Accuracy"], 4),
+  "\n"
+)
+
+cat(
+  "\nTest accuracy:",
+  round(test_conf$overall["Accuracy"], 4),
+  "\n"
+)
+```
+
+```{r}
+cm <- confusionMatrix(pred, y_test)
+
+cm_df <- as.data.frame(cm$table)
+
+ggplot(cm_df, aes(Prediction, Reference, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = Freq)) +
+  scale_fill_gradient(low = "white", high = "red") +
+  theme_minimal() +
+  ggtitle("Confusion Matrix - SVM")
+
+pca <- prcomp(X_test, scale. = TRUE)
+
+pca_df <- data.frame(
+  PC1 = pca$x[,1],
+  PC2 = pca$x[,2],
+  label = y_test,
+  pred = pred
+)
+
+ggplot(pca_df, aes(PC1, PC2, color = label)) +
+  geom_point(size = 3) +
+  theme_minimal() +
+  ggtitle("PCA of LR interaction space")
+
+
+
+top_features <- names(sort(apply(X_train, 2, var), decreasing = TRUE))[1:2]
+
+X_small <- X_train[, top_features]
+
+model_small <- svm(X_small, y_train, kernel = "linear")
+View(model_small)
+
+imp <- varImp(svm_model)
+plot(imp, top = 20)
+
+plot_df <- data.frame(
+  X1 = X_small[,1],
+  X2 = X_small[,2],
+  label = y_train
+)
+
+x1_range <- seq(min(plot_df$X1), max(plot_df$X1), length.out = 200)
+x2_range <- seq(min(plot_df$X2), max(plot_df$X2), length.out = 200)
+
+grid <- expand.grid(
+  X1 = x1_range,
+  X2 = x2_range
+)
+
+grid_pred <- predict(model_small, grid)
+grid$pred <- grid_pred
+
+
+svm_model$finalModel
+
+
+#install.packages('kernlab')
+library(kernlab)
+
+grid <- expand.grid(
+  X1 = seq(min(X_small[,1]), max(X_small[,1]), length.out = 200),
+  X2 = seq(min(X_small[,2]), max(X_small[,2]), length.out = 200)
+)
+
+grid$pred <- predict(svm_model, grid)
+
+library(ggplot2)
+
+ggplot() +
+  geom_point(data = grid, aes(X1, X2, color = pred), alpha = 0.2, size = 0.3) +
+  geom_point(data = plot_df, aes(X1, X2, color = label), size = 2) +
+  theme_minimal() +
+  labs(title = "SVM Decision Boundary")
+
+
+sv <- model_small$index
+
+plot_df$sv <- FALSE
+plot_df$sv[sv] <- TRUE
+
+ggplot() +
+  
+  # decision regions
+  geom_tile(
+    data = grid,
+    aes(X1, X2, fill = pred),
+    alpha = 0.3
+  ) +
+  
+  # data points
+  geom_point(
+    data = plot_df,
+    aes(X1, X2, color = label),
+    size = 2
+  ) +
+  
+  scale_fill_manual(values = c("NOT_PREGNANT" = "lightblue",
+                               "PREGNANT" = "pink")) +
+  
+  scale_color_manual(values = c("NOT_PREGNANT" = "blue",
+                                "PREGNANT" = "red")) +
+  
+  theme_minimal() +
+  ggtitle("SVM decision boundary (top 2 LR features)")
+```
+
+```{r}
+perm_importance <- function(model, X, y) {
+  
+  baseline_prob <- predict(model, X, type = "prob")[,2]
+  baseline_loss <- -mean(log(baseline_prob + 1e-15))
+  
+  imp <- numeric(ncol(X))
+  
+  for (i in 1:ncol(X)) {
+    
+    X_perm <- X
+    X_perm[, i] <- sample(X_perm[, i])
+    
+    prob <- predict(model, X_perm, type = "prob")[,2]
+    loss <- -mean(log(prob + 1e-15))
+    
+    imp[i] <- loss - baseline_loss
+  }
+  
+  data.frame(feature = colnames(X), importance = imp)
+}
+```
+
+```{r}
+perm_df <- perm_importance(svm_model, X_train, y_train)
+
+library(ggplot2)
+
+perm_df$feature <- factor(perm_df$feature, levels = perm_df$feature)
+
+ggplot(perm_df, aes(x = reorder(feature, importance), y = importance)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Feature Importance (Permutation Method)",
+    x = "Feature",
+    y = "Decrease in Accuracy"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+summary(perm_df$importance)
+```
