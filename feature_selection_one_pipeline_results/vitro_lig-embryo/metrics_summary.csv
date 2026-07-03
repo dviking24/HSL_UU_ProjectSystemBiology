@@ -1,0 +1,11 @@
+"seed","dataset","basic_train_pred....basic_pred_list.train_conf.overall..Accuracy..","basic_test_conf....basic_pred_list.test_conf.overall..Accuracy..","train_accuracy","test_accuracy","train_kappa","test_kappa","sensitivity","specificity","balanced_accuracy","auc"
+64,"vitro_lig-embryo",1,0.46875,1,0.625,1,0.25,0.75,0.5,0.625,0.375
+28,"vitro_lig-embryo",1,0.53125,1,0.75,1,0.5,0.9375,0.5625,0.75,0.8046875
+21,"vitro_lig-embryo",1,0.5,1,0.6875,1,0.375,0.75,0.625,0.6875,0.6484375
+94,"vitro_lig-embryo",1,0.71875,1,0.875,1,0.75,1,0.75,0.875,0.8125
+41,"vitro_lig-embryo",1,0.65625,1,0.71875,1,0.4375,0.6875,0.75,0.71875,0.62890625
+12,"vitro_lig-embryo",1,0.71875,1,0.84375,1,0.6875,1,0.6875,0.84375,0.96484375
+53,"vitro_lig-embryo",1,0.46875,1,0.75,1,0.5,0.6875,0.8125,0.75,0.8046875
+22,"vitro_lig-embryo",1,0.46875,1,0.53125,1,0.0625,0.5,0.5625,0.53125,0.578125
+17,"vitro_lig-embryo",1,0.375,1,0.65625,1,0.3125,0.375,0.9375,0.65625,0.80078125
+62,"vitro_lig-embryo",1,0.375,1,0.5625,1,0.125,0.75,0.375,0.5625,0.578125

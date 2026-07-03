@@ -1,0 +1,11 @@
+"seed","dataset","basic_train_pred....basic_pred_list.train_conf.overall..Accuracy..","basic_test_conf....basic_pred_list.test_conf.overall..Accuracy..","train_accuracy","test_accuracy","train_kappa","test_kappa","sensitivity","specificity","balanced_accuracy","auc"
+64,"vivo_lig-endo",1,0.6875,1,0.75,1,0.5,0.5,1,0.75,0.890625
+28,"vivo_lig-endo",1,0.75,1,0.78125,1,0.5625,0.75,0.8125,0.78125,0.84765625
+21,"vivo_lig-endo",1,0.6875,1,0.75,1,0.5,0.75,0.75,0.75,0.779296875
+94,"vivo_lig-endo",1,0.8125,1,0.84375,1,0.6875,0.6875,1,0.84375,0.947265625
+41,"vivo_lig-endo",1,0.625,1,0.65625,1,0.3125,0.625,0.6875,0.65625,0.56640625
+12,"vivo_lig-endo",1,0.65625,1,0.75,1,0.5,1,0.5,0.75,0.78515625
+53,"vivo_lig-endo",1,0.75,1,0.90625,1,0.8125,1,0.8125,0.90625,0.96484375
+22,"vivo_lig-endo",1,0.78125,1,0.90625,1,0.8125,1,0.8125,0.90625,1
+17,"vivo_lig-endo",1,0.8125,1,0.78125,1,0.5625,0.875,0.6875,0.78125,0.923828125
+62,"vivo_lig-endo",1,0.8125,1,0.875,1,0.75,1,0.75,0.875,1

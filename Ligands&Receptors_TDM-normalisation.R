@@ -94,12 +94,22 @@ groep_vivo  <- c(rep("vivo",  n_vivo),  rep("endom", ncol(endom_sub)))
 groep_vitro <- c(rep("vitro", n_vitro), rep("endom", ncol(endom_sub_v)))
 
 # voor TDM
-pca_check(as.matrix(cbind(vivo_sub,  endom_sub)),   groep_vivo,  "Vivo - voor TDM")
-pca_check(as.matrix(cbind(vitro_sub, endom_sub_v)), groep_vitro, "Vitro - voor TDM")
+p1 <- pca_check(as.matrix(cbind(vivo_sub, endom_sub)), groep_vivo, "Vivo - before TDM")
+p2 <- pca_check(as.matrix(cbind(vitro_sub, endom_sub_v)), groep_vitro, "Vitro - before TDM")
 
 # na TDM
-pca_check(cbind(vivo_norm,  endom_norm),   groep_vivo,  "Vivo - na TDM")
-pca_check(cbind(vitro_norm, endom_norm_v), groep_vitro, "Vitro - na TDM")
+p3 <- pca_check(cbind(vivo_norm, endom_norm), groep_vivo, "Vivo - after TDM")
+p4 <- pca_check(cbind(vitro_norm, endom_norm_v), groep_vitro, "Vitro - after TDM")
+
+print(p1)
+print(p2)
+print(p3)
+print(p4)
+
+ggsave("PCA_vivo_voor_TDM.png", plot = p1, width = 6, height = 5, dpi = 300)
+ggsave("PCA_vitro_voor_TDM.png", plot = p2, width = 6, height = 5, dpi = 300) 
+ggsave("PCA_vivo_na_TDM.png", plot = p3, width = 6, height = 5, dpi = 300) 
+ggsave("PCA_vitro_na_TDM.png", plot = p4, width = 6, height = 5, dpi = 300)
 
 #ligand, receptor en ligrec
 
