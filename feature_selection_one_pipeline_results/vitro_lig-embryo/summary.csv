@@ -1,0 +1,11 @@
+"metric","mean"
+"basic_train_pred....basic_pred_list.train_conf.overall..Accuracy..",1
+"basic_test_conf....basic_pred_list.test_conf.overall..Accuracy..",0.528125
+"train_accuracy",1
+"test_accuracy",0.7
+"train_kappa",1
+"test_kappa",0.4
+"sensitivity",0.74375
+"specificity",0.65625
+"balanced_accuracy",0.7
+"auc",0.699609375

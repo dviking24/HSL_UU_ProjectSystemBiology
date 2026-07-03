@@ -16,6 +16,9 @@ library(ggplot2)
 # --- data exploration --- 
 # samplecolumns in endom:
 ncol(data_endom)
+dim(meta_endom)
+head(meta_endom)
+print()
 
 # samplecolumns in blastovivo:
 ncol(data_blastovivo)
@@ -134,14 +137,14 @@ pca_plot <- function(data, conditie, titel) {
     theme_minimal()
 }
 
-pca_plot(data_endom, ifelse(grepl("^PR", colnames(data_endom)), "PR", "nonPR"), "PCA endom")
-pca_plot(data_blastovivo, ifelse(grepl("_PR_", colnames(data_blastovivo)), "PR", "NP"), "PCA blasto in vivo")
-pca_plot(data_blastovitro, ifelse(grepl("_PR_", colnames(data_blastovitro)), "PR", "NP"), "PCA blasto in vitro")
+print(pca_plot(data_endom, ifelse(grepl("^PR", colnames(data_endom)), "PR", "nonPR"), "PCA endom"))
+print(pca_plot(data_blastovivo, ifelse(grepl("_PR_", colnames(data_blastovivo)), "PR", "NP"), "PCA blasto in vivo"))
+print(pca_plot(data_blastovitro, ifelse(grepl("_PR_", colnames(data_blastovitro)), "PR", "NP"), "PCA blasto in vitro"))
 
 #boxplot
-boxplot(data_endom, las = 2, cex.axis = 0.5, main = "Endom")
-boxplot(data_blastovivo, las = 2, cex.axis = 0.5, main = "Blasto in vivo")
-boxplot(data_blastovitro, las = 2, cex.axis = 0.5, main = "Blasto in vitro")
+print(boxplot(data_endom, las = 2, cex.axis = 0.5, main = "Endom"))
+print(boxplot(data_blastovivo, las = 2, cex.axis = 0.5, main = "Blasto in vivo"))
+print(boxplot(data_blastovitro, las = 2, cex.axis = 0.5, main = "Blasto in vitro"))
 
 
 
