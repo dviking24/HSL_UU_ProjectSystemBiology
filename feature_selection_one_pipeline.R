@@ -34,38 +34,46 @@ library(png)
 #                              GLOBAL VARIABLES                                #
 #------------------------------------------------------------------------------#
 
-DATA_ENDOM        <- "Datasets/DataEndom.txt"
-DATA_VIVO         <- "Datasets/Data_BlastoIVV.txt"
-DATA_VITRO        <- "Datasets/Data_BlastoIVT.txt"
-DATA_LR           <- "Datasets/LRdb_bovine_ENSEMBL.txt"
+# --- Raw Gene Expression Datasets ---
+DATA_ENDOM        <- "Datasets/DataEndom.txt"                 # Transcriptomic data for maternal endometrial tissue
+DATA_VIVO         <- "Datasets/Data_BlastoIVV.txt"            # Transcriptomic data for in vivo-derived blastocysts (embryos)
+DATA_VITRO        <- "Datasets/Data_BlastoIVT.txt"            # Transcriptomic data for in vitro-produced blastocysts (embryos)
+DATA_LR           <- "Datasets/LRdb_bovine_ENSEMBL.txt"       # Reference database containing annotated bovine Ligand-Receptor pairs (ENSEMBL IDs)
 
-META_ENDOM        <- "Datasets/SampleInfo_Endom.txt"
-META_VIVO         <- "Datasets/SampleInfo_BlastoIVV.txt"
-META_VITRO        <- "Datasets/SampleInfo_BlastoIVT.txt"
+# --- Metadata / Sample Phenotypes ---
+META_ENDOM        <- "Datasets/SampleInfo_Endom.txt"          # Metadata mapping endometrial samples to pregnancy status (PR vs. NP)
+META_VIVO         <- "Datasets/SampleInfo_BlastoIVV.txt"       # Metadata mapping in vivo embryo samples to pregnancy status
+META_VITRO        <- "Datasets/SampleInfo_BlastoIVT.txt"       # Metadata mapping in vitro embryo samples to pregnancy status
 
-VIVO_LIG_ENDO_REC_EMBRYO <- "matrices/vivo_lig-Endo_rec-Embryo_matrix.tsv"
-VITRO_LIG_ENDO_REC_EMBRYO <- "matrices/vitro_lig-Endo_rec-Embryo_matrix.tsv"
-VIVO_LIG_EMBRYO_REC_ENDO <- "matrices/vivo_lig-Embryo_rec-Endo_matrix.tsv"
-VITRO_LIG_EMBRYO_REC_ENDO <- "matrices/vitro_lig-Embryo_rec-Endo_matrix.tsv"
+# --- Pre-computed Interaction Matrices (Ligand-Endometrium & Receptor-Embryo) ---
+VIVO_LIG_ENDO_REC_EMBRYO  <- "matrices/vivo_lig-Endo_rec-Embryo_matrix.tsv"   # Interaction scores: Maternal Ligands x Embryonic Receptors (In Vivo)
+VITRO_LIG_ENDO_REC_EMBRYO <- "matrices/vitro_lig-Endo_rec-Embryo_matrix.tsv"  # Interaction scores: Maternal Ligands x Embryonic Receptors (In Vitro)
 
-WHICH             <- "VIVO_VITRO_lig-embryo"
+# --- Pre-computed Interaction Matrices (Ligand-Embryo & Receptor-Endometrium) ---
+VIVO_LIG_EMBRYO_REC_ENDO  <- "matrices/vivo_lig-Embryo_rec-Endo_matrix.tsv"   # Interaction scores: Embryonic Ligands x Maternal Receptors (In Vivo)
+VITRO_LIG_EMBRYO_REC_ENDO <- "matrices/vitro_lig-Embryo_rec-Endo_matrix.tsv"  # Interaction scores: Embryonic Ligands x Maternal Receptors (In Vitro)
 
-SEEDS_TO_RUN      <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62)
-# SEEDS_TO_RUN      <- c(17)
+# --- Pipeline Execution Controls ---
+WHICH             <- "VIVO_VITRO_lig-embryo"                  # Target matrix selector determining which interaction direction/cohort to run
 
-COMPARE_VAR_IMP   <- c(10, 15, 20, 25, 30, 40, 60, 80, 100, 120, 200, 300, 400)
-SHAP_AMT_FEATURE  <- 10
+# --- Reproducibility Seeds ---
+SEEDS_TO_RUN      <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62) # Array of random seeds used for reproducible train/test splits and CV iterations
+# SEEDS_TO_RUN    <- c(17)                                    # Single seed definition (useful for fast testing/debugging)
 
-VIVO_TRAIN_A      <- 7
-VIVO_TEST_A       <- 4
+# --- Feature Selection & Importance Settings ---
+COMPARE_VAR_IMP   <- c(10, 15, 20, 25, 30, 40, 60, 80, 100, 120, 200, 300, 400) # Grid of top feature subset sizes to evaluate performance in Pipeline 2
+SHAP_AMT_FEATURE  <- 10                                       # Maximum number of top features to extract from the baseline SHAP analysis profile
 
-VITRO_TRAIN_A     <- 5
-VITRO_TEST_A      <- 4
+# --- Sample Splitting & Allocation (In Vivo Cohort) ---
+# Defines the number of distinct biological samples allocated to prevent cross-pairing data leakage
+VIVO_TRAIN_A      <- 7                                        # Number of unique source samples selected for the In Vivo training partition
+VIVO_TEST_A       <- 4                                        # Number of unique source samples reserved for the In Vivo independent testing partition
+
+# --- Sample Splitting & Allocation (In Vitro Cohort) ---
+VITRO_TRAIN_A     <- 5                                        # Number of unique source samples selected for the In Vitro training partition
+VITRO_TEST_A      <- 4                                        # Number of unique source samples reserved for the In Vitro independent testing partition
 
 
-##============================================================================##
-##                          NORMALISATION PIPELINE                            ##
-##============================================================================##
 
 #------------------------------------------------------------------------------#
 #                                LOADING DATA                                  #
@@ -1485,6 +1493,11 @@ calculate_metric_means <- function(df) {
 
 
 
+##-------------------------------------------------------------------------------##
+##                           TRIGGER PIPELINE                                    ##
+##-------------------------------------------------------------------------------##
+
+
 full_pipeline <- function() {
   matrix_file <- file.path(VITRO_LIG_EMBRYO_REC_ENDO)
   # matrix_file <- "pyhton.py"
@@ -1546,5 +1559,10 @@ full_pipeline <- function() {
   
 }
 
+
+
+##-------------------------------------------------------------------------------##
+##                                   TRIGGER                                     ##
+##-------------------------------------------------------------------------------##
 
 full_pipeline()

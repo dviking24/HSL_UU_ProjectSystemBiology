@@ -33,42 +33,52 @@ library(readr)
 library(pheatmap)
 
 
+
 #------------------------------------------------------------------------------#
 #                              GLOBAL VARIABLES                                #
 #------------------------------------------------------------------------------#
 
-DATA_ENDOM        <- "Datasets/DataEndom.txt"
-DATA_VIVO         <- "Datasets/Data_BlastoIVV.txt"
-DATA_VITRO        <- "Datasets/Data_BlastoIVT.txt"
-DATA_LR           <- "Datasets/LRdb_bovine_ENSEMBL.txt"
+# --- Raw Gene Expression Datasets ---
+DATA_ENDOM        <- "Datasets/DataEndom.txt"                 # Transcriptomic data for maternal endometrial tissue
+DATA_VIVO         <- "Datasets/Data_BlastoIVV.txt"            # Transcriptomic data for in vivo-derived blastocysts (embryos)
+DATA_VITRO        <- "Datasets/Data_BlastoIVT.txt"            # Transcriptomic data for in vitro-produced blastocysts (embryos)
+DATA_LR           <- "Datasets/LRdb_bovine_ENSEMBL.txt"       # Reference database containing annotated bovine Ligand-Receptor pairs (ENSEMBL IDs)
 
-META_ENDOM        <- "Datasets/SampleInfo_Endom.txt"
-META_VIVO         <- "Datasets/SampleInfo_BlastoIVV.txt"
-META_VITRO        <- "Datasets/SampleInfo_BlastoIVT.txt"
+# --- Metadata / Sample Phenotypes ---
+META_ENDOM        <- "Datasets/SampleInfo_Endom.txt"          # Metadata mapping endometrial samples to pregnancy status (PR vs. NP)
+META_VIVO         <- "Datasets/SampleInfo_BlastoIVV.txt"       # Metadata mapping in vivo embryo samples to pregnancy status
+META_VITRO        <- "Datasets/SampleInfo_BlastoIVT.txt"       # Metadata mapping in vitro embryo samples to pregnancy status
 
-VIVO_LIG_ENDO_REC_EMBRYO <- "matrices/vivo_lig-Endo_rec-Embryo_matrix.tsv"
-VITRO_LIG_ENDO_REC_EMBRYO <- "matrices/vitro_lig-Endo_rec-Embryo_matrix.tsv"
+# --- Pre-computed Interaction Matrices (Ligand-Endometrium & Receptor-Embryo) ---
+VIVO_LIG_ENDO_REC_EMBRYO  <- "matrices/vivo_lig-Endo_rec-Embryo_matrix.tsv"   # Interaction scores: Maternal Ligands x Embryonic Receptors (In Vivo)
+VITRO_LIG_ENDO_REC_EMBRYO <- "matrices/vitro_lig-Endo_rec-Embryo_matrix.tsv"  # Interaction scores: Maternal Ligands x Embryonic Receptors (In Vitro)
 
-VIVO_LIG_EMBRYO_REC_ENDO <- "matrices/vivo_lig-Embryo_rec-Endo_matrix.tsv"
-VITRO_LIG_EMBRYO_REC_ENDO <- "matrices/vitro_lig-Embryo_rec-Endo_matrix.tsv"
+# --- Pre-computed Interaction Matrices (Ligand-Embryo & Receptor-Endometrium) ---
+VIVO_LIG_EMBRYO_REC_ENDO  <- "matrices/vivo_lig-Embryo_rec-Endo_matrix.tsv"   # Interaction scores: Embryonic Ligands x Maternal Receptors (In Vivo)
+VITRO_LIG_EMBRYO_REC_ENDO <- "matrices/vitro_lig-Embryo_rec-Endo_matrix.tsv"  # Interaction scores: Embryonic Ligands x Maternal Receptors (In Vitro)
 
-WHICH             <- "VIVO_VITRO_lig-endo"
+# --- Pipeline Execution Controls ---
+choice            <- "ALL"                                    # Execution mode selector (e.g., "ALL", "VIVO", or "VITRO" cohorts)
+SEEDS_TO_RUN      <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62) # Array of random seeds used for reproducible train/test splits and CV iterations
 
-SEEDS_TO_RUN      <- c(64, 28, 21, 94, 41, 12, 53, 22, 17, 62)
-# SEEDS_TO_RUN <- c(53)
+# --- Feature Selection & Importance Settings ---
+COMPARE_VAR_IMP   <- c(10, 15, 20, 25, 30, 40, 60)            # Feature subset thresholds to evaluate performance changes in Pipeline 2
+SHAP_AMT_FEATURE  <- 10                                       # Maximum number of top features to extract from the SHAP analysis profile
 
-COMPARE_VAR_IMP   <- c(10, 15, 20, 25, 30, 40, 60)
-SHAP_AMT_FEATURE  <- 10
+# --- Sample Splitting & Allocation (In Vivo Cohort) ---
+# Defines how many biological entities are allocated to each group to prevent cross-pairing data leakage
+VIVO_TRAIN_A      <- 7                                        # Number of unique samples selected for the In Vivo training partition
+VIVO_TEST_A       <- 4                                        # Number of unique samples reserved for the In Vivo independent testing partition
 
-VIVO_TRAIN_A      <- 7
-VIVO_TEST_A       <- 4
-
-VITRO_TRAIN_A     <- 5
-VITRO_TEST_A      <- 4
-
-
+# --- Sample Splitting & Allocation (In Vitro Cohort) ---
+VITRO_TRAIN_A     <- 5                                        # Number of unique samples selected for the In Vitro training partition
+VITRO_TEST_A      <- 4                                        # Number of unique samples reserved for the In Vitro independent testing partition
 
 
+
+##-------------------------------------------------------------------------------##
+##                           DECIDING PREGNANCY STATUS                           ##
+##-------------------------------------------------------------------------------##
 
 
 
@@ -892,6 +902,11 @@ amt_feature <- function(n) {
   return(vec)
 }
 
+##-------------------------------------------------------------------------------##
+##                                METRICS                                        ##
+##-------------------------------------------------------------------------------##
+
+
 
 calculate_metric_means <- function(df) {
   
@@ -910,6 +925,11 @@ calculate_metric_means <- function(df) {
     row.names = NULL
   )
 }
+
+##-------------------------------------------------------------------------------##
+##                                PIPELINE                                       ##
+##-------------------------------------------------------------------------------##
+
 
 
 small_best_pipeline <- function(matrix, train_sample_amount, test_sample_amount, seeds_to_run, name, len_features) {
@@ -1000,6 +1020,11 @@ small_best_pipeline <- function(matrix, train_sample_amount, test_sample_amount,
     create_top10_shap(base_dir)
     
 }
+
+##-------------------------------------------------------------------------------##
+##                             TOP 10 FEATURES                                   ##
+##-------------------------------------------------------------------------------##
+
 
 load_top10_matrix <- function(result_name, matrix_file) {
   
@@ -1121,6 +1146,11 @@ load_svm_matrix <- function(result_name, name, matrix_file) {
   return(mat)
 }
 
+##-------------------------------------------------------------------------------##
+##                                  HEATMAP                                      ##
+##-------------------------------------------------------------------------------##
+
+
 pheatmap_function <-  function(name) {
   lig_Endo_mat <- load_top10_matrix(
     result_name = name,
@@ -1171,6 +1201,11 @@ pheatmap_function <-  function(name) {
   )
   
 }
+
+##-------------------------------------------------------------------------------##
+##                           TRIGGER PIPELINE                                    ##
+##-------------------------------------------------------------------------------##
+
 
 
 full_pipeline <- function() {
@@ -1229,5 +1264,10 @@ full_pipeline <- function() {
   }
   
 }
+
+##-------------------------------------------------------------------------------##
+##                                  TRIGGER                                      ##
+##-------------------------------------------------------------------------------##
+
 
 full_pipeline()
